@@ -60,7 +60,7 @@
 
     var s = load();
     applyRoot(s);
-    return { s: s, save: save, applyRoot: applyRoot };
+    return { s: s, save: save, applyRoot: applyRoot, rgb: rgb, hex: hex };
   })();
 </script>
 <style>
@@ -155,7 +155,7 @@
     padding-block: calc(env(safe-area-inset-top, 0px) + 24px) calc(env(safe-area-inset-bottom, 0px) + 32px);
   }
   :root[data-font="pixel"] body { -webkit-font-smoothing: none; }
-  .wrap { max-width: 1040px; margin-inline: auto; display: grid; gap: 26px; }
+  .wrap { max-width: 1180px; margin-inline: auto; display: grid; gap: 26px; }
 
   svg.i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
@@ -184,8 +184,20 @@
   #open-settings:active svg { transform: rotate(60deg); }
 
   /* ---------- картки ---------- */
-  .books { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
-  :root[data-layout="list"] .books { grid-template-columns: 1fr; gap: 12px; }
+  .books { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .books > li { min-width: 0; }
+  .books > li:last-child { grid-column: span 2; }
+  @media (min-width: 640px) {
+    .books { gap: 18px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .books > li { grid-column: span 2; }
+    .books > li:nth-child(n+4) { grid-column: span 3; }
+  }
+  :root[data-layout="list"] .books { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  :root[data-layout="list"] .books > li { grid-column: auto; }
+  @media (min-width: 900px) {
+    :root[data-layout="list"] .books { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    :root[data-layout="list"] .books > li:last-child { grid-column: span 2; }
+  }
   .books > li { animation: rise .6s var(--ease-out) both; animation-delay: calc(var(--n) * 55ms + 60ms); }
   .books.again > li { animation-name: rise2; animation-duration: .45s; animation-delay: calc(var(--n) * 35ms); }
 
@@ -216,7 +228,7 @@
   .flag { width: 1.1em; height: .74em; border-radius: max(2px, calc(var(--radius) * .18)); overflow: hidden; display: block; }
   .book h2 {
     margin: auto 0 0; font-size: calc(27px * var(--scale)); line-height: 1.12; font-weight: 900;
-    letter-spacing: -.01em; text-wrap: balance; min-width: 0;
+    letter-spacing: -.01em; text-wrap: balance; min-width: 0; overflow-wrap: break-word; hyphens: auto;
   }
   :root[data-font="strict"] .book h2 { font-weight: 800; letter-spacing: -.02em; }
   .book .go {
@@ -246,7 +258,7 @@
 
   /* ---------- налаштування (шторка) ---------- */
   dialog {
-    border: none; padding: 0; margin: auto auto 0; width: min(580px, 100%);
+    border: none; padding: 0; margin: auto auto 0; width: min(580px, 100%); max-width: 100%;
     max-height: calc(100% - 24px); overflow: auto; overscroll-behavior: contain;
     background: var(--surface); color: var(--ink);
     border-radius: calc(var(--radius) + 4px) calc(var(--radius) + 4px) 0 0;
@@ -321,11 +333,59 @@
   .swatch svg.i { stroke-width: 3; opacity: 0; transform: scale(.5); transition: opacity .2s ease, transform .35s var(--spring); }
   .swatch[aria-pressed="true"] svg.i { opacity: 1; transform: none; }
   .swatch.multi { background: conic-gradient(#FFAE5E, #FFD84D, #5FDDB1, #8FB4FF, #FF92C6, #FFAE5E); }
-  .swatch.custom { background: conic-gradient(from 90deg, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30); overflow: hidden; }
-  .swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+  .swatch.custom { background: conic-gradient(from 90deg, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30); }
   .swatch.custom .plus { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #111; display: grid; place-items: center; font-size: 18px; pointer-events: none; }
   .swatch.custom .plus svg.i { opacity: 1; transform: none; stroke-width: 2.6; }
   .swatch.custom[aria-pressed="true"] .plus { background: var(--c); color: #fff; }
+  .swatch.custom .plus svg.i { transition: transform .35s var(--spring); }
+  .swatch.custom[aria-expanded="true"] .plus svg.i { transform: rotate(45deg); }
+
+  /* власна палітра: квадрат насиченість/яскравість + смуга відтінку + HEX */
+  .picker {
+    display: grid; gap: 14px; padding: 14px; margin-top: 6px; min-width: 0;
+    border-radius: var(--radius-ui); background: var(--seg-bg);
+    animation: rise .4s var(--ease-out) both;
+  }
+  .picker[hidden] { display: none; }
+  .sv {
+    --hue-c: #0A7CFF;
+    position: relative; height: 190px; border-radius: max(6px, calc(var(--radius-ui) - 6px)); cursor: crosshair;
+    background: linear-gradient(to top, #000, rgba(0, 0, 0, 0)), linear-gradient(to right, #fff, var(--hue-c));
+    touch-action: none;
+  }
+  .hue {
+    position: relative; height: 34px; border-radius: max(6px, min(17px, calc(var(--radius-ui) - 6px))); cursor: pointer;
+    background: linear-gradient(to right, #f00 0%, #ff0 16.66%, #0f0 33.33%, #0ff 50%, #00f 66.66%, #f0f 83.33%, #f00 100%);
+    touch-action: none;
+  }
+  .knob {
+    position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
+    border: 3px solid #fff; background: var(--k, #fff); pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .25), 0 2px 6px rgba(0, 0, 0, .35);
+    transition: transform .2s var(--spring);
+  }
+  .hue .knob { top: 50%; }
+  .dragging .knob { transform: scale(1.18); }
+  .picker-row { display: flex; align-items: center; gap: 12px; }
+  .picker-row .preview { width: 48px; height: 48px; border-radius: 50%; background: var(--k, #0A7CFF); flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); }
+  .picker-row label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink-soft); }
+  .picker-row input {
+    flex: 1 1 0; width: 0; min-width: 0; height: 48px; padding: 0 14px; border-radius: max(6px, calc(var(--radius-ui) - 6px));
+    border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+    font: inherit; font-size: 18px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+  .picker-row input:focus { outline: none; border-color: var(--accent); }
+  .picker-row input[aria-invalid="true"] { border-color: #E5484D; }
+
+  /* ---------- підвал ---------- */
+  .credit {
+    display: flex; align-items: center; gap: 14px; padding-top: 20px; border-top: 1px solid var(--line);
+    color: var(--ink-soft); font-size: calc(15px * var(--scale));
+    animation: fade .6s var(--ease-out) .55s both;
+  }
+  .credit .logo { height: 30px; width: auto; flex: none; color: var(--ink); }
+  .credit b { color: var(--ink); font-weight: 800; }
 
   .done {
     min-height: 58px; border-radius: var(--radius-ui); border: 0; background: var(--accent); color: #fff;
@@ -336,11 +396,30 @@
   :root[data-theme="dark"] .done { color: #0B0B0D; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .done { color: #0B0B0D; } }
 
-  @media (max-width: 420px) {
-    .book { min-height: calc(150px * var(--scale)); padding: 20px; }
-    .book h2 { font-size: calc(24px * var(--scale)); }
-    .seg button { font-size: calc(13px * var(--scale)); }
-    .swatch { width: 46px; height: 46px; }
+  /* телефон: компактні плитки по 2 в ряд */
+  @media (max-width: 639px) {
+    .wrap { gap: 20px; }
+    .book { min-height: calc(138px * var(--scale)); padding: 16px; gap: 12px; border-radius: min(var(--radius), 26px); }
+    .tile { font-size: calc(38px * var(--scale)); width: calc(44px * var(--scale)); height: calc(44px * var(--scale)); }
+    .book h2 { font-size: calc(clamp(15px, 5vw, 24px) * var(--scale)); hyphens: manual; }
+  }
+  @media (max-width: 360px) {
+    .book { padding: 14px; }
+    .book .go { top: 12px; right: 10px; font-size: 22px; width: 36px; height: 36px; }
+    :root[data-layout="list"] .book { min-height: calc(84px * var(--scale)); padding: 14px 16px; }
+    .icon-btn { width: 52px; height: 52px; font-size: 24px; }
+    .sheet { padding-inline: 16px; gap: 18px; }
+    .seg button { font-size: calc(13px * var(--scale)); min-height: 54px; overflow-wrap: anywhere; }
+    .swatches { gap: 8px; }
+    .swatch { width: 44px; height: 44px; }
+  }
+  /* ПК: більше повітря і крупніші картки */
+  @media (min-width: 1100px) {
+    body { padding-block: calc(env(safe-area-inset-top, 0px) + 48px) calc(env(safe-area-inset-bottom, 0px) + 40px); }
+    .wrap { gap: 32px; }
+    .book { min-height: calc(220px * var(--scale)); padding: 28px; }
+    .book h2 { font-size: calc(32px * var(--scale)); }
+    .tile { font-size: calc(58px * var(--scale)); }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after, dialog::backdrop { transition: none !important; animation: none !important; }
@@ -409,6 +488,20 @@
   </main>
 
   <p class="note"><svg class="i"><use href="#i-info"/></svg>Підручник відкривається в новій вкладці.</p>
+
+  <footer class="credit">
+    <svg class="logo" viewBox="0 0 400 294" fill="none" role="img" aria-label="SULIMOV">
+      <path d="M160.817 33.5637L115.878 92.6521L160.817 151.74L116.682 185.304L81.047 138.449L45.4124 185.304L1.27958 151.74L46.2161 92.6521L1.27958 33.5637L45.4124 0L81.047 46.8518L116.682 0L160.817 33.5637ZM293.45 38.1517C339.284 38.1517 382.884 69.7169 400 124.56L347.072 141.077C336.332 106.661 312.281 93.5953 293.45 93.5953C275.591 93.5955 255.398 105.229 249.61 137.686L195.024 127.951C205.154 71.1497 246.642 38.1519 293.45 38.1517Z" fill="currentColor"/>
+      <path d="M378.665 289.455L370.387 289.88L369.91 289.907L358.957 290.478L333.224 218.597L360.5 217.165L368.281 241.07L374.276 216.394L399.8 215.212L378.665 289.455Z" fill="currentColor"/>
+      <path d="M293.562 222.743C298.728 218.733 305.573 217.261 313.429 218.145L313.433 218.142L313.472 218.149C313.49 218.151 313.508 218.15 313.525 218.152L313.522 218.155C321.437 218.971 327.846 221.85 332.054 226.892C336.278 231.954 337.489 238.238 336.887 244.22L336.88 244.263L333.999 271.138C333.295 278.024 330.904 284.495 325.612 288.887C320.614 293.036 314.123 294.426 306.941 293.89L305.496 293.757H305.486C297.836 292.916 291.268 290.2 286.964 284.821C282.663 279.445 281.6 272.626 282.354 265.677L285.149 238.669V238.642L285.152 238.619C285.816 232.629 288.375 226.77 293.562 222.743Z" fill="currentColor"/>
+      <path d="M275.716 216.451L278.216 289.482L259.102 288.006L258.795 267.05L256.011 288.432L225.8 290.781L223.161 274.795L222.367 270.002L222.684 291.289L203.518 292.046L201.02 219.049L228.383 218.015L239.35 246.452L248.045 217.331L275.716 216.451Z" fill="currentColor"/>
+      <path d="M170.236 218.504L197.168 220.384L192.064 293.401L165.132 291.521L170.236 218.504Z" fill="currentColor"/>
+      <path d="M121.605 217.982L150.644 220.052L147.418 267.178L161.336 268.201L159.544 293.91L116.497 290.93L121.605 217.982Z" fill="currentColor"/>
+      <path d="M45.2468 247.983L39.2417 248.681L39.2019 248.684C40.9235 250.087 42.3997 251.575 43.5973 253.245C46.6069 257.441 47.4245 262.118 47.8072 267.217L47.9497 269.43V269.45C48.2972 275.925 47.1086 282.159 42.9978 286.877C38.8526 291.633 32.8634 293.56 26.433 293.87L26.4364 293.873C18.9884 294.263 12.3706 292.791 7.77163 287.81C3.97805 283.701 2.59072 278.25 2.09106 272.885L1.92545 270.596L1.91882 270.43L1.66378 261.175L7.37747 260.474C6.27277 259.494 5.26045 258.439 4.38316 257.271C1.72977 253.738 0.660745 249.759 0.216309 245.119L0.0639443 243.09L0.060632 243.056V243.023C-0.26699 236.405 0.648629 229.961 4.89326 225.174C9.16267 220.36 15.3985 218.793 21.8223 218.46C29.0455 218.074 35.4526 219.404 39.8544 224.187C43.4595 228.106 44.639 233.258 45.0845 237.99L45.2336 239.987L45.2468 240.19V247.983Z" fill="currentColor"/>
+      <path d="M85.4414 265.387C85.3229 265.651 85.2055 265.776 85.0737 265.875C84.6897 266.165 83.6735 266.583 81.7184 266.583C80.4537 266.583 79.611 266.259 79.2408 265.972C79.1057 265.867 78.9704 265.728 78.8433 265.447C78.7399 265.218 78.5947 264.79 78.5287 264.078L78.4955 263.267V217.683H51.9542V265.477C51.9542 273.96 55.7845 280.768 61.5201 285.292C67.1113 289.702 74.3337 291.84 81.4633 291.84C89.3936 291.84 97.1404 289.999 103.02 285.146C108.735 280.429 111.842 273.568 112.208 265.211L112.244 263.52V217.683H85.7859V263.181C85.7859 264.427 85.5751 265.089 85.4414 265.387Z" fill="currentColor"/>
+    </svg>
+    <span>Розробка: <b>В. Сулімов</b></span>
+  </footer>
 </div>
 
 <dialog id="settings" aria-labelledby="settings-title">
@@ -431,10 +524,17 @@
         <button type="button" class="swatch" id="color-pink" data-color="#F2508F" style="--c:#F2508F" aria-label="Рожевий"><svg class="i"><use href="#i-check"/></svg></button>
         <button type="button" class="swatch" id="color-purple" data-color="#8E5CF7" style="--c:#8E5CF7" aria-label="Фіолетовий"><svg class="i"><use href="#i-check"/></svg></button>
         <button type="button" class="swatch" id="color-gray" data-color="#7A808C" style="--c:#7A808C" aria-label="Графіт"><svg class="i"><use href="#i-check"/></svg></button>
-        <label class="swatch custom" id="color-custom-wrap" aria-label="Свій колір">
+        <button type="button" class="swatch custom" id="color-custom" aria-label="Свій колір" aria-expanded="false" aria-controls="picker">
           <span class="plus"><svg class="i"><use href="#i-plus"/></svg></span>
-          <input type="color" id="color-custom" value="#0A7CFF">
-        </label>
+        </button>
+      </div>
+      <div class="picker" id="picker" hidden>
+        <div class="sv" id="sv" aria-label="Насиченість і яскравість"><span class="knob" id="sv-knob"></span></div>
+        <div class="hue" id="hue" aria-label="Відтінок"><span class="knob" id="hue-knob"></span></div>
+        <div class="picker-row">
+          <span class="preview" id="preview"></span>
+          <label for="hex">HEX <input id="hex" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="7" value="#0A7CFF"></label>
+        </div>
       </div>
     </fieldset>
 
@@ -491,11 +591,10 @@
     var s = PIDR.s;
     var dlg = document.getElementById('settings');
     var books = document.getElementById('books');
-    var swatches = document.querySelectorAll('#swatches button.swatch');
-    var customWrap = document.getElementById('color-custom-wrap');
-    var customInput = document.getElementById('color-custom');
+    var swatches = document.querySelectorAll('#swatches .swatch[data-color]');
+    var customBtn = document.getElementById('color-custom');
 
-    function apply() {
+    function apply(noSave) {
       PIDR.applyRoot(s);
       document.querySelectorAll('.seg').forEach(function (seg) {
         var btns = seg.querySelectorAll('button');
@@ -512,10 +611,9 @@
         if (on) preset = true;
         b.setAttribute('aria-pressed', String(on));
       });
-      var custom = !preset;
-      customWrap.setAttribute('aria-pressed', String(custom));
-      if (custom) { customWrap.style.setProperty('--c', s.color); customInput.value = s.color; }
-      PIDR.save(s);
+      customBtn.setAttribute('aria-pressed', String(!preset));
+      if (!preset) customBtn.style.setProperty('--c', s.color);
+      if (!noSave) PIDR.save(s);
     }
 
     // Коротка повторна поява карток, коли змінюється їхній вигляд
@@ -536,9 +634,91 @@
     });
 
     swatches.forEach(function (b) {
-      b.addEventListener('click', function () { s.color = b.dataset.color; apply(); });
+      b.addEventListener('click', function () {
+        s.color = b.dataset.color; apply();
+        if (s.color !== 'multi') syncPicker(s.color);
+      });
     });
-    customInput.addEventListener('input', function () { s.color = customInput.value; apply(); });
+
+    /* ---------- власна палітра ---------- */
+    var picker = document.getElementById('picker');
+    var sv = document.getElementById('sv'), svKnob = document.getElementById('sv-knob');
+    var hue = document.getElementById('hue'), hueKnob = document.getElementById('hue-knob');
+    var hexIn = document.getElementById('hex'), preview = document.getElementById('preview');
+    var H = 212, S = 1, V = 1;   // відтінок 0–360, насиченість і яскравість 0–1
+
+    function hsvToHex(h, sat, val) {
+      function f(n) { var k = (n + h / 60) % 6; return (val - val * sat * Math.max(Math.min(k, 4 - k, 1), 0)) * 255; }
+      return PIDR.hex([f(5), f(3), f(1)]);
+    }
+    function hexToHsv(hx) {
+      var c = PIDR.rgb(hx), r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+      var mx = Math.max(r, g, b), d = mx - Math.min(r, g, b), h = 0;
+      if (d) h = mx === r ? (g - b) / d : mx === g ? 2 + (b - r) / d : 4 + (r - g) / d;
+      h *= 60; if (h < 0) h += 360;
+      return [h, mx ? d / mx : 0, mx];
+    }
+    function paint() {
+      var cur = hsvToHex(H, S, V);
+      sv.style.setProperty('--hue-c', 'hsl(' + H + ',100%,50%)');
+      svKnob.style.left = (S * 100) + '%';
+      svKnob.style.top = ((1 - V) * 100) + '%';
+      svKnob.style.setProperty('--k', cur);
+      hueKnob.style.left = (H / 360 * 100) + '%';
+      hueKnob.style.setProperty('--k', 'hsl(' + H + ',100%,50%)');
+      preview.style.setProperty('--k', cur);
+      if (document.activeElement !== hexIn) { hexIn.value = cur.toUpperCase(); hexIn.removeAttribute('aria-invalid'); }
+    }
+    function syncPicker(hx) { var v = hexToHsv(hx); if (v[1] > 0.02) H = v[0]; S = v[1]; V = v[2]; paint(); }
+
+    // зміни під час перетягування застосовуємо раз на кадр — плавно і без зайвої роботи
+    var pending = false;
+    function commit(save) {
+      s.color = hsvToHex(H, S, V);
+      paint();
+      if (save) { apply(); return; }
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(function () { pending = false; apply(true); });
+    }
+    function draggable(el, move) {
+      el.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        var r = el.getBoundingClientRect();
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+        el.classList.add('dragging');
+        function mv(ev) { move(Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height))); commit(false); }
+        function up() {
+          el.classList.remove('dragging');
+          el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+          commit(true);
+        }
+        el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+        mv(e);
+      });
+    }
+    draggable(sv, function (x, y) { S = x; V = 1 - y; });
+    draggable(hue, function (x) { H = Math.min(359.9, x * 360); });
+
+    hexIn.addEventListener('input', function () {
+      var v = hexIn.value.trim(); if (v[0] !== '#') v = '#' + v;
+      if (/^#[0-9a-f]{6}$/i.test(v)) {
+        hexIn.removeAttribute('aria-invalid');
+        var hsv = hexToHsv(v); if (hsv[1] > 0.02) H = hsv[0]; S = hsv[1]; V = hsv[2];
+        s.color = v.toLowerCase(); paint(); apply();
+      } else hexIn.setAttribute('aria-invalid', 'true');
+    });
+    hexIn.addEventListener('blur', paint);
+
+    customBtn.addEventListener('click', function () {
+      var open = picker.hidden;
+      picker.hidden = !open;
+      customBtn.setAttribute('aria-expanded', String(open));
+      if (open) {
+        syncPicker(s.color === 'multi' ? '#0a7cff' : s.color);
+        if (s.color === 'multi') commit(true);   // одразу показуємо, як виглядатиме один колір
+      }
+    });
 
     document.getElementById('open-settings').addEventListener('click', function () {
       dlg.classList.remove('closing');
