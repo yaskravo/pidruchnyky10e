@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Підручники 10 клас</title>
-<meta name="description" content="Усі підручники 10 класу на одній сторінці: великі кнопки, зручно на планшеті.">
+<title>Підручники 10-Є клас</title>
+<meta name="description" content="Усі підручники 10-Є класу на одній сторінці: великі кнопки, зручно на планшеті.">
 <meta name="theme-color" content="#F2F3F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,16 +14,53 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&family=Pixelify+Sans:wght@400;600;700&display=swap">
 <script>
-  /* Застосовуємо збережені налаштування до першого малювання, щоб не було «блимання». */
-  (function () {
-    var d = document.documentElement, s = {};
-    try { s = JSON.parse(localStorage.getItem('pidruchnyky-settings') || '{}') || {}; } catch (e) {}
-    if (s.theme === 'light' || s.theme === 'dark') d.setAttribute('data-theme', s.theme);
-    d.setAttribute('data-font', s.font === 'strict' ? 'strict' : 'soft');
-    d.setAttribute('data-layout', s.layout || 'grid');
-    d.setAttribute('data-size', s.size || 'normal');
+  /* Спільна логіка налаштувань. Викликається ще до першого малювання, щоб не було «блимання». */
+  var PIDR = (function () {
+    var KEY = 'pidruchnyky-settings';
+    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal', color: 'multi', radius: 'normal' };
+    var RADII = { square: 6, small: 14, normal: 26, round: 40 };
+    var FONTS = { soft: 1, strict: 1, pixel: 1 };
+
+    function load() {
+      var s = {};
+      try { s = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
+      for (var k in defaults) if (!s[k]) s[k] = defaults[k];
+      if (!FONTS[s.font]) s.font = 'soft';              // старий «мультяшний» більше не існує
+      if (!(s.radius in RADII)) s.radius = 'normal';
+      if (s.color !== 'multi' && !/^#[0-9a-f]{6}$/i.test(s.color)) s.color = 'multi';
+      return s;
+    }
+    function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+
+    function rgb(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
+    function hex(c) { return '#' + c.map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
+    function mix(a, b, t) { a = rgb(a); b = rgb(b); return hex([0, 1, 2].map(function (i) { return a[i] + (b[i] - a[i]) * t; })); }
+
+    function applyRoot(s) {
+      var d = document.documentElement;
+      if (s.theme === 'light' || s.theme === 'dark') d.setAttribute('data-theme', s.theme); else d.removeAttribute('data-theme');
+      d.setAttribute('data-font', s.font);
+      d.setAttribute('data-layout', s.layout);
+      d.setAttribute('data-size', s.size);
+      d.style.setProperty('--radius', RADII[s.radius] + 'px');
+      if (s.color === 'multi') {
+        d.removeAttribute('data-color');
+      } else {
+        // з одного кольору робимо пару «фон картки / колір іконки» для світлої і темної теми
+        var c = s.color;
+        d.setAttribute('data-color', 'uni');
+        d.style.setProperty('--uni-bg-l', mix(c, '#ffffff', .78));
+        d.style.setProperty('--uni-fg-l', mix(c, '#000000', .38));
+        d.style.setProperty('--uni-bg-d', mix(c, '#0b0b0d', .74));
+        d.style.setProperty('--uni-fg-d', mix(c, '#ffffff', .32));
+      }
+    }
+
+    var s = load();
+    applyRoot(s);
+    return { s: s, save: save, applyRoot: applyRoot };
   })();
 </script>
 <style>
@@ -48,11 +85,18 @@
     --lit-bg:  #F8D7E8;  --lit-fg:  #A62F6C;
     --ukr-bg:  #FFEFAE;  --ukr-fg:  #866100;
 
+    /* один колір для всіх карток (вмикається в налаштуваннях; значення ставить скрипт) */
+    --uni-bg: var(--uni-bg-l, #D6E4FF);
+    --uni-fg: var(--uni-fg-l, #1D5BD8);
+
     --font-soft: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
     --font-strict: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --font-pixel: "Pixelify Sans", "Courier New", monospace;
     --font: var(--font-soft);
     --scale: 1;
-    --radius: 28px;
+    --radius: 26px;
+    --radius-in: max(4px, calc(var(--radius) - 8px));
+    --radius-ui: max(4px, calc(var(--radius) * .65));
     --spring: cubic-bezier(.32, 1.4, .56, 1);   /* легка «пружина» як в iOS */
     --ease-out: cubic-bezier(.22, 1, .36, 1);
     color-scheme: light;
@@ -68,6 +112,7 @@
       --tech-bg: #0F3A2C; --tech-fg: #5FDDB1;
       --lit-bg:  #421A30; --lit-fg:  #FF92C6;
       --ukr-bg:  #3C3108; --ukr-fg:  #FFD84D;
+      --uni-bg: var(--uni-bg-d, #172A50); --uni-fg: var(--uni-fg-d, #8FB4FF);
       color-scheme: dark;
     }
   }
@@ -81,9 +126,15 @@
     --tech-bg: #0F3A2C; --tech-fg: #5FDDB1;
     --lit-bg:  #421A30; --lit-fg:  #FF92C6;
     --ukr-bg:  #3C3108; --ukr-fg:  #FFD84D;
+    --uni-bg: var(--uni-bg-d, #172A50); --uni-fg: var(--uni-fg-d, #8FB4FF);
     color-scheme: dark;
   }
-  :root[data-font="strict"] { --font: var(--font-strict); --radius: 22px; }
+  /* свій колір: ним же фарбуємо кнопку «Готово» і рамку фокуса */
+  :root[data-color="uni"] { --accent: var(--uni-fg); --focus: var(--uni-fg); }
+  :root[data-color="uni"] .book { --bg-card: var(--uni-bg); --fg: var(--uni-fg); }
+
+  :root[data-font="strict"] { --font: var(--font-strict); }
+  :root[data-font="pixel"]  { --font: var(--font-pixel); }
   :root[data-size="large"]  { --scale: 1.18; }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -101,6 +152,7 @@
     padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
     padding-block: calc(env(safe-area-inset-top, 0px) + 24px) calc(env(safe-area-inset-bottom, 0px) + 32px);
   }
+  :root[data-font="pixel"] body { -webkit-font-smoothing: none; }
   .wrap { max-width: 1040px; margin-inline: auto; display: grid; gap: 26px; }
 
   svg.i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -108,15 +160,16 @@
   /* ---------- шапка ---------- */
   header { display: flex; align-items: flex-end; gap: 16px; animation: fade .5s var(--ease-out) both; }
   .brand { flex: 1; min-width: 0; display: grid; gap: 0; }
-  .brand small { font-size: calc(15px * var(--scale)); font-weight: 700; color: var(--ink-soft); }
+  .brand small { font-size: calc(16px * var(--scale)); font-weight: 800; color: var(--ink-soft); }
   h1 {
     margin: 0; font-size: calc(clamp(34px, 6.4vw, 48px) * var(--scale)); line-height: 1.05;
     font-weight: 900; letter-spacing: -.02em; text-wrap: balance;
   }
   :root[data-font="strict"] h1 { font-weight: 800; letter-spacing: -.03em; }
+  :root[data-font="pixel"] h1, :root[data-font="pixel"] h2 { font-weight: 700; letter-spacing: 0; }
 
   .icon-btn {
-    width: 56px; height: 56px; border-radius: 50%; border: 0;
+    width: 56px; height: 56px; border-radius: min(50%, var(--radius)); border: 0;
     background: var(--surface); color: var(--ink);
     display: grid; place-items: center; font-size: 26px; cursor: pointer; flex: none;
     transition: transform .45s var(--spring);
@@ -134,7 +187,7 @@
 
   .book {
     position: relative; display: flex; flex-direction: column; gap: 18px;
-    min-height: calc(196px * var(--scale)); height: 100%;
+    min-height: calc(180px * var(--scale)); height: 100%;
     padding: 22px; border-radius: var(--radius);
     background: var(--bg-card); color: var(--ink); text-decoration: none;
     transition: transform .5s var(--spring);
@@ -146,34 +199,30 @@
     .book:hover { transform: translateY(-3px); }
     .book:hover .go { transform: translate(2px, -2px); }
   }
-  .book:focus-visible, .icon-btn:focus-visible, .seg button:focus-visible, .done:focus-visible {
+  .book:focus-visible, .icon-btn:focus-visible, .seg button:focus-visible, .done:focus-visible, .swatch:focus-visible {
     outline: 4px solid var(--focus); outline-offset: 3px;
   }
 
   .tile {
-    width: calc(72px * var(--scale)); height: calc(72px * var(--scale)); border-radius: calc(var(--radius) - 8px);
+    width: calc(72px * var(--scale)); height: calc(72px * var(--scale)); border-radius: var(--radius-in);
     display: grid; place-items: center; background: var(--chip); color: var(--fg);
     font-size: calc(38px * var(--scale)); flex: none;
   }
   .tile svg.i { stroke-width: 1.9; }
-  .book .text { display: grid; gap: 2px; min-width: 0; margin-top: auto; }
+  .flag { width: 1.2em; height: .8em; border-radius: max(2px, calc(var(--radius) * .18)); overflow: hidden; display: block; }
   .book h2 {
-    margin: 0; font-size: calc(27px * var(--scale)); line-height: 1.12; font-weight: 900;
-    letter-spacing: -.01em; text-wrap: balance;
+    margin: auto 0 0; font-size: calc(27px * var(--scale)); line-height: 1.12; font-weight: 900;
+    letter-spacing: -.01em; text-wrap: balance; min-width: 0;
   }
   :root[data-font="strict"] .book h2 { font-weight: 800; letter-spacing: -.02em; }
-  .book .src {
-    color: var(--fg); font-weight: 700; font-size: calc(15px * var(--scale));
-    display: flex; align-items: center; gap: 6px; opacity: .9;
-  }
   .book .go {
-    position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%;
+    position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: min(50%, var(--radius-in));
     display: grid; place-items: center; font-size: 22px; color: var(--fg); background: var(--chip);
     transition: transform .4s var(--spring);
   }
 
-  :root[data-layout="list"] .book { flex-direction: row; align-items: center; min-height: calc(108px * var(--scale)); padding: 18px; }
-  :root[data-layout="list"] .book .text { margin-top: 0; flex: 1; }
+  :root[data-layout="list"] .book { flex-direction: row; align-items: center; min-height: calc(104px * var(--scale)); padding: 16px 18px; }
+  :root[data-layout="list"] .book h2 { margin: 0; flex: 1; }
   :root[data-layout="list"] .book .go { position: static; }
 
   .b-hist { --bg-card: var(--hist-bg); --fg: var(--hist-fg); }
@@ -193,12 +242,12 @@
 
   /* ---------- налаштування (шторка) ---------- */
   dialog {
-    border: none; padding: 0; margin: auto auto 0; width: min(560px, 100%);
+    border: none; padding: 0; margin: auto auto 0; width: min(580px, 100%);
     max-height: calc(100% - 24px); overflow: auto; overscroll-behavior: contain;
     background: var(--surface); color: var(--ink);
-    border-radius: 30px 30px 0 0;
+    border-radius: calc(var(--radius) + 4px) calc(var(--radius) + 4px) 0 0;
   }
-  @media (min-width: 640px) { dialog { margin: auto; border-radius: 30px; } }
+  @media (min-width: 640px) { dialog { margin: auto; border-radius: calc(var(--radius) + 4px); } }
   dialog::backdrop { background: rgba(0, 0, 0, .4); }
   dialog[open] { animation: sheet-in .5s var(--ease-out) both; }
   dialog[open]::backdrop { animation: fade .3s ease-out both; }
@@ -214,7 +263,7 @@
 
   .grabber { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 8px auto -10px; }
   @media (min-width: 640px) { .grabber { display: none; } }
-  .sheet { display: grid; gap: 22px; padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 22px); }
+  .sheet { display: grid; gap: 20px; padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 22px); }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .sheet h2 { margin: 0; font-size: calc(28px * var(--scale)); font-weight: 900; letter-spacing: -.01em; }
   .sheet .icon-btn { background: var(--seg-bg); width: 48px; height: 48px; font-size: 22px; }
@@ -225,21 +274,21 @@
   .seg {
     --n: 3; --i: 0;
     position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr);
-    padding: 4px; border-radius: 18px; background: var(--seg-bg);
+    padding: 4px; border-radius: var(--radius-ui); background: var(--seg-bg);
   }
   .seg::before {
     content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px;
-    width: calc((100% - 8px) / var(--n)); border-radius: 14px; background: var(--seg-thumb);
+    width: calc((100% - 8px) / var(--n)); border-radius: max(3px, calc(var(--radius-ui) - 4px)); background: var(--seg-thumb);
     box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
     transform: translateX(calc(100% * var(--i)));
     transition: transform .45s var(--spring);
   }
   .seg button {
     position: relative; z-index: 1;
-    min-height: 60px; padding: 6px 6px; border-radius: 14px; border: 0;
+    min-height: 58px; padding: 6px 4px; border-radius: max(3px, calc(var(--radius-ui) - 4px)); border: 0;
     background: transparent; color: var(--ink-soft); cursor: pointer;
     font: inherit; font-size: calc(15px * var(--scale)); font-weight: 700; line-height: 1.15;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
     touch-action: manipulation; transition: color .25s ease, transform .3s var(--spring);
   }
   .seg button:active { transform: scale(.94); }
@@ -247,18 +296,46 @@
   .seg button svg.i { font-size: 22px; }
   .seg button[data-font="soft"]   { font-family: var(--font-soft); }
   .seg button[data-font="strict"] { font-family: var(--font-strict); }
+  .seg button[data-font="pixel"]  { font-family: var(--font-pixel); }
   .seg .aa { font-size: calc(22px * var(--scale)); line-height: 1; font-weight: 800; }
+  .seg .shape { width: 24px; height: 24px; border: 2.5px solid currentColor; display: block; }
+
+  /* кольори */
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+  .swatch {
+    position: relative; width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: var(--c); color: #fff; display: grid; place-items: center; font-size: 24px;
+    transition: transform .35s var(--spring); touch-action: manipulation;
+  }
+  .swatch:active { transform: scale(.88); transition-duration: .12s; }
+  .swatch::after {
+    content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 3px solid var(--ink);
+    opacity: 0; transform: scale(.85); transition: opacity .2s ease, transform .35s var(--spring);
+  }
+  .swatch[aria-pressed="true"]::after { opacity: 1; transform: none; }
+  .swatch svg.i { stroke-width: 3; opacity: 0; transform: scale(.5); transition: opacity .2s ease, transform .35s var(--spring); }
+  .swatch[aria-pressed="true"] svg.i { opacity: 1; transform: none; }
+  .swatch.multi { background: conic-gradient(#FFAE5E, #FFD84D, #5FDDB1, #8FB4FF, #FF92C6, #FFAE5E); }
+  .swatch.custom { background: conic-gradient(from 90deg, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30); overflow: hidden; }
+  .swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+  .swatch.custom .plus { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #111; display: grid; place-items: center; font-size: 18px; pointer-events: none; }
+  .swatch.custom .plus svg.i { opacity: 1; transform: none; stroke-width: 2.6; }
+  .swatch.custom[aria-pressed="true"] .plus { background: var(--c); color: #fff; }
+
   .done {
-    min-height: 58px; border-radius: 18px; border: 0; background: var(--accent); color: #fff;
+    min-height: 58px; border-radius: var(--radius-ui); border: 0; background: var(--accent); color: #fff;
     font: inherit; font-size: calc(18px * var(--scale)); font-weight: 800; cursor: pointer;
     transition: transform .4s var(--spring); touch-action: manipulation;
   }
   .done:active { transform: scale(.96); transition-duration: .12s; }
+  :root[data-theme="dark"] .done { color: #0B0B0D; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .done { color: #0B0B0D; } }
 
   @media (max-width: 420px) {
-    .book { min-height: calc(164px * var(--scale)); padding: 20px; }
+    .book { min-height: calc(150px * var(--scale)); padding: 20px; }
     .book h2 { font-size: calc(24px * var(--scale)); }
     .seg button { font-size: calc(13px * var(--scale)); }
+    .swatch { width: 46px; height: 46px; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after, dialog::backdrop { transition: none !important; animation: none !important; }
@@ -272,12 +349,11 @@
   <symbol id="i-math" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8.5h4M9 6.5v4"/><path d="M13 8.5h4"/><path d="m7.5 14 3 3M10.5 14l-3 3"/><path d="M13 14.5h4M13 16.8h4"/></symbol>
   <symbol id="i-tech" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
   <symbol id="i-lit" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></symbol>
-  <symbol id="i-ukr" viewBox="0 0 24 24"><path d="m2.5 18 5-12 5 12"/><path d="M4.3 13.7h6.4"/><path d="M15 12.5a3 3 0 0 1 6 0V18"/><path d="M21 15.2h-3.2a2.4 2.4 0 1 0 0 4.8c1.8 0 3.2-1.2 3.2-3"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-open" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
-  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
-  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-auto" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
@@ -289,7 +365,7 @@
 <div class="wrap">
   <header>
     <div class="brand">
-      <small>10 клас</small>
+      <small>10-Є клас</small>
       <h1>Підручники</h1>
     </div>
     <button class="icon-btn" id="open-settings" type="button" aria-label="Налаштування" aria-haspopup="dialog">
@@ -301,27 +377,27 @@
     <ul class="books" id="books">
       <li style="--n:0"><a class="book b-hist" href="https://drive.google.com/file/d/1q4nO1a97Egmbeb3jZPUGlnkPiwxXa89s/view" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-history"/></svg></span>
-        <div class="text"><h2>Історія</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
+        <h2>Історія</h2>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
       <li style="--n:1"><a class="book b-math" href="https://drive.google.com/file/d/14jrMP4ftrvDGHu_lAiJOt7P1BWLHtEIQ/view" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-math"/></svg></span>
-        <div class="text"><h2>Математика</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
+        <h2>Математика</h2>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
       <li style="--n:2"><a class="book b-tech" href="https://pidruchnyk.com.ua/3085-tekhnologii-10-11-klas-khodzycka.html" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-tech"/></svg></span>
-        <div class="text"><h2>Технології</h2><span class="src"><svg class="i"><use href="#i-globe"/></svg>pidruchnyk.com.ua</span></div>
+        <h2>Технології</h2>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
       <li style="--n:3"><a class="book b-lit" href="https://drive.google.com/file/d/1RZZprIbth1i1Rc1oAkR9rO6a0TJO05Tw/view" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-lit"/></svg></span>
-        <div class="text"><h2>Література</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
+        <h2>Література</h2>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
       <li style="--n:4"><a class="book b-ukr" href="https://drive.google.com/file/d/1MA0c_Z6ELtU-oTyZCyZrK_wu3neiWMnx/view?pli=1" target="_blank" rel="noopener">
-        <span class="tile"><svg class="i"><use href="#i-ukr"/></svg></span>
-        <div class="text"><h2>Українська мова</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
+        <span class="tile"><svg class="flag" viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height="1" fill="#0057B7"/><rect y="1" width="3" height="1" fill="#FFD700"/></svg></span>
+        <h2>Українська мова</h2>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
     </ul>
@@ -339,10 +415,40 @@
     </div>
 
     <fieldset>
+      <legend>Колір</legend>
+      <div class="swatches" id="swatches">
+        <button type="button" class="swatch multi" id="color-multi" data-color="multi" aria-label="Різнокольорові"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-blue" data-color="#0A7CFF" style="--c:#0A7CFF" aria-label="Синій"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-teal" data-color="#12B5C9" style="--c:#12B5C9" aria-label="Бірюзовий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-green" data-color="#2DB55D" style="--c:#2DB55D" aria-label="Зелений"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-orange" data-color="#FF8A1F" style="--c:#FF8A1F" aria-label="Помаранчевий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-red" data-color="#F0433A" style="--c:#F0433A" aria-label="Червоний"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-pink" data-color="#F2508F" style="--c:#F2508F" aria-label="Рожевий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-purple" data-color="#8E5CF7" style="--c:#8E5CF7" aria-label="Фіолетовий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="color-gray" data-color="#7A808C" style="--c:#7A808C" aria-label="Графіт"><svg class="i"><use href="#i-check"/></svg></button>
+        <label class="swatch custom" id="color-custom-wrap" aria-label="Свій колір">
+          <span class="plus"><svg class="i"><use href="#i-plus"/></svg></span>
+          <input type="color" id="color-custom" value="#0A7CFF">
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
       <legend>Шрифт</legend>
       <div class="seg" data-key="font">
         <button type="button" id="font-soft" data-value="soft" data-font="soft"><span class="aa">Аа</span>М'який</button>
         <button type="button" id="font-strict" data-value="strict" data-font="strict"><span class="aa">Аа</span>Строгий</button>
+        <button type="button" id="font-pixel" data-value="pixel" data-font="pixel"><span class="aa">Аа</span>Майнкрафт</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Заокруглення</legend>
+      <div class="seg" data-key="radius">
+        <button type="button" id="radius-square" data-value="square"><span class="shape" style="border-radius:2px"></span>Мінімум</button>
+        <button type="button" id="radius-small" data-value="small"><span class="shape" style="border-radius:5px"></span>Трохи</button>
+        <button type="button" id="radius-normal" data-value="normal"><span class="shape" style="border-radius:9px"></span>Звичайне</button>
+        <button type="button" id="radius-round" data-value="round"><span class="shape" style="border-radius:50%"></span>Кругле</button>
       </div>
     </fieldset>
 
@@ -377,21 +483,15 @@
 
 <script>
   (function () {
-    var KEY = 'pidruchnyky-settings';
-    var root = document.documentElement;
+    var s = PIDR.s;
     var dlg = document.getElementById('settings');
     var books = document.getElementById('books');
-    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal' };
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
-    for (var k in defaults) if (!s[k]) s[k] = defaults[k];
-    if (s.font !== 'strict') s.font = 'soft';   // старий «мультяшний» більше не існує
+    var swatches = document.querySelectorAll('#swatches button.swatch');
+    var customWrap = document.getElementById('color-custom-wrap');
+    var customInput = document.getElementById('color-custom');
 
     function apply() {
-      if (s.theme === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', s.theme);
-      root.setAttribute('data-font', s.font);
-      root.setAttribute('data-layout', s.layout);
-      root.setAttribute('data-size', s.size);
+      PIDR.applyRoot(s);
       document.querySelectorAll('.seg').forEach(function (seg) {
         var btns = seg.querySelectorAll('button');
         seg.style.setProperty('--n', btns.length);
@@ -401,7 +501,16 @@
           if (on) seg.style.setProperty('--i', i);
         });
       });
-      try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
+      var preset = false;
+      swatches.forEach(function (b) {
+        var on = b.dataset.color.toLowerCase() === s.color.toLowerCase();
+        if (on) preset = true;
+        b.setAttribute('aria-pressed', String(on));
+      });
+      var custom = !preset;
+      customWrap.setAttribute('aria-pressed', String(custom));
+      if (custom) { customWrap.style.setProperty('--c', s.color); customInput.value = s.color; }
+      PIDR.save(s);
     }
 
     // Коротка повторна поява карток, коли змінюється їхній вигляд
@@ -421,6 +530,11 @@
       });
     });
 
+    swatches.forEach(function (b) {
+      b.addEventListener('click', function () { s.color = b.dataset.color; apply(); });
+    });
+    customInput.addEventListener('input', function () { s.color = customInput.value; apply(); });
+
     document.getElementById('open-settings').addEventListener('click', function () {
       dlg.classList.remove('closing');
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
@@ -434,7 +548,7 @@
       dlg.classList.add('closing');
       var done = false;
       function finish() { if (done) return; done = true; dlg.classList.remove('closing'); dlg.close(); }
-      dlg.addEventListener('animationend', finish, { once: true });
+      dlg.addEventListener('animationend', function (e) { if (e.target === dlg) finish(); });
       setTimeout(finish, 400);
     }
     dlg.querySelector('form').addEventListener('submit', function (e) { e.preventDefault(); closeSheet(); });
