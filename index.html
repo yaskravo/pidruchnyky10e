@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&family=Pixelify+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&display=swap">
 <script>
   /* Спільна логіка налаштувань. Викликається ще до першого малювання, щоб не було «блимання». */
   var PIDR = (function () {
@@ -64,6 +64,11 @@
   })();
 </script>
 <style>
+  @font-face {
+    font-family: "Minecraft";
+    src: url("fonts/Minecraft.ttf") format("truetype");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
   /* Макет: великий заголовок як в iOS, під ним кольорові картки-віджети; на планшеті 2–3 в ряд, на телефоні — 1.
      Анімації лише через transform і opacity (композитор GPU), без blur і анімованих тіней — легко навіть для слабких планшетів. */
   :root {
@@ -90,7 +95,7 @@
 
     --font-soft: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
     --font-strict: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    --font-pixel: "Pixelify Sans", "Courier New", monospace;
+    --font-pixel: "Minecraft", "Courier New", monospace;
     --font: var(--font-soft);
     --scale: 1;
     --radius: 26px;
@@ -163,7 +168,9 @@
     font-weight: 900; letter-spacing: -.02em; text-wrap: balance;
   }
   :root[data-font="strict"] h1 { font-weight: 800; letter-spacing: -.03em; }
-  :root[data-font="pixel"] h1, :root[data-font="pixel"] h2 { font-weight: 700; letter-spacing: 0; }
+  /* у шрифта Minecraft лише одне накреслення — без штучного «жирного», щоб пікселі лишались чіткими */
+  :root[data-font="pixel"] body { font-synthesis: none; }
+  :root[data-font="pixel"] :is(h1, h2, small, button, .aa, legend) { font-weight: 400; letter-spacing: 0; }
 
   .icon-btn {
     width: 56px; height: 56px; border-radius: min(50%, var(--radius)); border: 0;
@@ -270,7 +277,7 @@
   /* сегментований перемикач у стилі iOS: повзунок їде через transform */
   .seg {
     --n: 3; --i: 0;
-    position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr);
+    position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr));
     padding: 4px; border-radius: var(--radius-ui); background: var(--seg-bg);
   }
   .seg::before {
@@ -278,7 +285,7 @@
     width: calc((100% - 8px) / var(--n)); border-radius: max(3px, calc(var(--radius-ui) - 4px)); background: var(--seg-thumb);
     box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
     transform: translateX(calc(100% * var(--i)));
-    transition: transform .45s var(--spring);
+    transition: transform .4s var(--ease-out);
   }
   .seg button {
     position: relative; z-index: 1;
@@ -293,7 +300,8 @@
   .seg button svg.i { font-size: 22px; }
   .seg button[data-font="soft"]   { font-family: var(--font-soft); }
   .seg button[data-font="strict"] { font-family: var(--font-strict); }
-  .seg button[data-font="pixel"]  { font-family: var(--font-pixel); }
+  .seg button[data-font="pixel"]  { font-family: var(--font-pixel); font-synthesis: none; }
+  .seg button[data-font="pixel"], .seg button[data-font="pixel"] .aa { font-weight: 400; }
   .seg .aa { font-size: calc(22px * var(--scale)); line-height: 1; font-weight: 800; }
   .seg .shape { width: 24px; height: 24px; border: 2.5px solid currentColor; display: block; }
 
