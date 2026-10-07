@@ -74,7 +74,6 @@
     --line: #E1E4EB;
     --accent: #0A7CFF;
     --focus: #0A7CFF;
-    --chip: rgba(255, 255, 255, .62);   /* підкладка іконки на кольоровій картці */
     --seg-bg: #E6E8EE;
     --seg-thumb: #FFFFFF;
 
@@ -105,7 +104,6 @@
     :root:not([data-theme="light"]) {
       --bg: #000000; --surface: #1C1C1F; --ink: #F5F6F8; --ink-soft: #9BA1AD; --line: #2C2D33;
       --accent: #3D96FF; --focus: #5AA7FF;
-      --chip: rgba(255, 255, 255, .08);
       --seg-bg: #2A2B30; --seg-thumb: #4A4C54;
       --hist-bg: #3D2710; --hist-fg: #FFAE5E;
       --math-bg: #172A50; --math-fg: #8FB4FF;
@@ -119,7 +117,6 @@
   :root[data-theme="dark"] {
     --bg: #000000; --surface: #1C1C1F; --ink: #F5F6F8; --ink-soft: #9BA1AD; --line: #2C2D33;
     --accent: #3D96FF; --focus: #5AA7FF;
-    --chip: rgba(255, 255, 255, .08);
     --seg-bg: #2A2B30; --seg-thumb: #4A4C54;
     --hist-bg: #3D2710; --hist-fg: #FFAE5E;
     --math-bg: #172A50; --math-fg: #8FB4FF;
@@ -204,12 +201,12 @@
   }
 
   .tile {
-    width: calc(72px * var(--scale)); height: calc(72px * var(--scale)); border-radius: var(--radius-in);
-    display: grid; place-items: center; background: var(--chip); color: var(--fg);
-    font-size: calc(38px * var(--scale)); flex: none;
+    width: calc(56px * var(--scale)); height: calc(56px * var(--scale));
+    display: grid; place-items: center; justify-items: start; color: var(--fg);
+    font-size: calc(50px * var(--scale)); flex: none;
   }
-  .tile svg.i { stroke-width: 1.9; }
-  .flag { width: 1.2em; height: .8em; border-radius: max(2px, calc(var(--radius) * .18)); overflow: hidden; display: block; }
+  .tile svg.i { stroke-width: 1.8; }
+  .flag { width: 1.1em; height: .74em; border-radius: max(2px, calc(var(--radius) * .18)); overflow: hidden; display: block; }
   .book h2 {
     margin: auto 0 0; font-size: calc(27px * var(--scale)); line-height: 1.12; font-weight: 900;
     letter-spacing: -.01em; text-wrap: balance; min-width: 0;
@@ -217,7 +214,7 @@
   :root[data-font="strict"] .book h2 { font-weight: 800; letter-spacing: -.02em; }
   .book .go {
     position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: min(50%, var(--radius-in));
-    display: grid; place-items: center; font-size: 22px; color: var(--fg); background: var(--chip);
+    display: grid; place-items: center; font-size: 26px; color: var(--fg);
     transition: transform .4s var(--spring);
   }
 
