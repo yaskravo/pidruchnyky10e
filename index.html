@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Підручники 10 клас</title>
 <meta name="description" content="Усі підручники 10 класу на одній сторінці: великі кнопки, зручно на планшеті.">
-<meta name="theme-color" content="#EEF2F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#11151C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F2F3F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -14,74 +14,76 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Manrope:wght@500;700;800&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&display=swap">
 <script>
   /* Застосовуємо збережені налаштування до першого малювання, щоб не було «блимання». */
   (function () {
     var d = document.documentElement, s = {};
     try { s = JSON.parse(localStorage.getItem('pidruchnyky-settings') || '{}') || {}; } catch (e) {}
     if (s.theme === 'light' || s.theme === 'dark') d.setAttribute('data-theme', s.theme);
-    d.setAttribute('data-font', s.font || 'cartoon');
+    d.setAttribute('data-font', s.font === 'strict' ? 'strict' : 'soft');
     d.setAttribute('data-layout', s.layout || 'grid');
     d.setAttribute('data-size', s.size || 'normal');
   })();
 </script>
 <style>
-  /* Макет: одна колонка «дошка» з великими плитками-кнопками; на планшеті 2–3 в ряд, на телефоні — 1. */
+  /* Макет: великий заголовок як в iOS, під ним кольорові картки-віджети; на планшеті 2–3 в ряд, на телефоні — 1.
+     Анімації лише через transform і opacity (композитор GPU), без blur і анімованих тіней — легко навіть для слабких планшетів. */
   :root {
-    --bg: #EEF2F7;          /* холодний «паперовий» фон */
+    --bg: #F2F3F7;
     --surface: #FFFFFF;
-    --ink: #18202E;
-    --ink-soft: #5A6578;
-    --line: #D8DFEA;
-    --accent: #2F6FEB;
-    --focus: #2F6FEB;
-    --shadow: 0 1px 0 rgba(24, 32, 46, .04), 0 6px 18px -8px rgba(24, 32, 46, .18);
-    --shadow-press: 0 1px 0 rgba(24, 32, 46, .04), 0 2px 6px -3px rgba(24, 32, 46, .2);
+    --ink: #111317;
+    --ink-soft: #6B7180;
+    --line: #E1E4EB;
+    --accent: #0A7CFF;
+    --focus: #0A7CFF;
+    --chip: rgba(255, 255, 255, .62);   /* підкладка іконки на кольоровій картці */
+    --seg-bg: #E6E8EE;
+    --seg-thumb: #FFFFFF;
 
-    /* кольори предметів: фон плитки-іконки / колір іконки */
-    --hist-bg: #FDEBD3;  --hist-fg: #B4590B;
-    --math-bg: #DCE8FF;  --math-fg: #1F5BD6;
-    --tech-bg: #D6F3EA;  --tech-fg: #0C7A5B;
-    --lit-bg:  #F6DDEA;  --lit-fg:  #A3326C;
-    --ukr-bg:  #FFF1BF;  --ukr-fg:  #8A6500;
+    /* кольори предметів: фон картки / колір іконки */
+    --hist-bg: #FFE3C2;  --hist-fg: #B4560A;
+    --math-bg: #D6E4FF;  --math-fg: #1D5BD8;
+    --tech-bg: #CDF1E3;  --tech-fg: #0B7A58;
+    --lit-bg:  #F8D7E8;  --lit-fg:  #A62F6C;
+    --ukr-bg:  #FFEFAE;  --ukr-fg:  #866100;
 
-    --font-cartoon: "Balsamiq Sans", "Comic Sans MS", "Chalkboard SE", ui-rounded, system-ui, sans-serif;
-    --font-soft: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
-    --font-strict: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
-    --font: var(--font-cartoon);
+    --font-soft: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+    --font-strict: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --font: var(--font-soft);
     --scale: 1;
-    --radius: 26px;
+    --radius: 28px;
+    --spring: cubic-bezier(.32, 1.4, .56, 1);   /* легка «пружина» як в iOS */
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #11151C; --surface: #1A2029; --ink: #EEF2F8; --ink-soft: #9AA5B8; --line: #2A3240;
-      --accent: #6E9BFF; --focus: #8FB2FF;
-      --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 22px -10px rgba(0,0,0,.7);
-      --shadow-press: 0 1px 0 rgba(0,0,0,.3), 0 2px 6px -3px rgba(0,0,0,.6);
-      --hist-bg: #3A2814; --hist-fg: #F5A65B;
-      --math-bg: #1C2B4A; --math-fg: #8DB0FF;
-      --tech-bg: #133A30; --tech-fg: #5ED6AE;
-      --lit-bg:  #3B1D2D; --lit-fg:  #F08BBE;
-      --ukr-bg:  #3A3110; --ukr-fg:  #F3CF4B;
+      --bg: #000000; --surface: #1C1C1F; --ink: #F5F6F8; --ink-soft: #9BA1AD; --line: #2C2D33;
+      --accent: #3D96FF; --focus: #5AA7FF;
+      --chip: rgba(255, 255, 255, .08);
+      --seg-bg: #2A2B30; --seg-thumb: #4A4C54;
+      --hist-bg: #3D2710; --hist-fg: #FFAE5E;
+      --math-bg: #172A50; --math-fg: #8FB4FF;
+      --tech-bg: #0F3A2C; --tech-fg: #5FDDB1;
+      --lit-bg:  #421A30; --lit-fg:  #FF92C6;
+      --ukr-bg:  #3C3108; --ukr-fg:  #FFD84D;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #11151C; --surface: #1A2029; --ink: #EEF2F8; --ink-soft: #9AA5B8; --line: #2A3240;
-    --accent: #6E9BFF; --focus: #8FB2FF;
-    --shadow: 0 1px 0 rgba(0,0,0,.3), 0 8px 22px -10px rgba(0,0,0,.7);
-    --shadow-press: 0 1px 0 rgba(0,0,0,.3), 0 2px 6px -3px rgba(0,0,0,.6);
-    --hist-bg: #3A2814; --hist-fg: #F5A65B;
-    --math-bg: #1C2B4A; --math-fg: #8DB0FF;
-    --tech-bg: #133A30; --tech-fg: #5ED6AE;
-    --lit-bg:  #3B1D2D; --lit-fg:  #F08BBE;
-    --ukr-bg:  #3A3110; --ukr-fg:  #F3CF4B;
+    --bg: #000000; --surface: #1C1C1F; --ink: #F5F6F8; --ink-soft: #9BA1AD; --line: #2C2D33;
+    --accent: #3D96FF; --focus: #5AA7FF;
+    --chip: rgba(255, 255, 255, .08);
+    --seg-bg: #2A2B30; --seg-thumb: #4A4C54;
+    --hist-bg: #3D2710; --hist-fg: #FFAE5E;
+    --math-bg: #172A50; --math-fg: #8FB4FF;
+    --tech-bg: #0F3A2C; --tech-fg: #5FDDB1;
+    --lit-bg:  #421A30; --lit-fg:  #FF92C6;
+    --ukr-bg:  #3C3108; --ukr-fg:  #FFD84D;
     color-scheme: dark;
   }
-  :root[data-font="soft"]   { --font: var(--font-soft); }
-  :root[data-font="strict"] { --font: var(--font-strict); --radius: 18px; }
+  :root[data-font="strict"] { --font: var(--font-strict); --radius: 22px; }
   :root[data-size="large"]  { --scale: 1.18; }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -94,125 +96,172 @@
     font-family: var(--font);
     font-size: calc(17px * var(--scale));
     line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
-    padding-block: calc(env(safe-area-inset-top, 0px) + 20px) calc(env(safe-area-inset-bottom, 0px) + 32px);
+    padding-block: calc(env(safe-area-inset-top, 0px) + 24px) calc(env(safe-area-inset-bottom, 0px) + 32px);
   }
-  .wrap { max-width: 1040px; margin-inline: auto; display: grid; gap: 28px; }
+  .wrap { max-width: 1040px; margin-inline: auto; display: grid; gap: 26px; }
 
   svg.i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
   /* ---------- шапка ---------- */
-  header { display: flex; align-items: center; gap: 16px; }
-  .brand { flex: 1; min-width: 0; display: grid; gap: 2px; }
-  .brand small {
-    font-size: calc(13px * var(--scale)); font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--ink-soft);
+  header { display: flex; align-items: flex-end; gap: 16px; animation: fade .5s var(--ease-out) both; }
+  .brand { flex: 1; min-width: 0; display: grid; gap: 0; }
+  .brand small { font-size: calc(15px * var(--scale)); font-weight: 700; color: var(--ink-soft); }
+  h1 {
+    margin: 0; font-size: calc(clamp(34px, 6.4vw, 48px) * var(--scale)); line-height: 1.05;
+    font-weight: 900; letter-spacing: -.02em; text-wrap: balance;
   }
-  h1 { margin: 0; font-size: calc(clamp(30px, 6vw, 44px) * var(--scale)); line-height: 1.05; font-weight: 800; text-wrap: balance; }
-  :root[data-font="cartoon"] h1 { font-weight: 700; }
+  :root[data-font="strict"] h1 { font-weight: 800; letter-spacing: -.03em; }
 
   .icon-btn {
-    width: 60px; height: 60px; border-radius: 20px; border: 1px solid var(--line);
-    background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
-    display: grid; place-items: center; font-size: 28px; cursor: pointer; flex: none;
-    transition: transform .12s ease, box-shadow .12s ease;
+    width: 56px; height: 56px; border-radius: 50%; border: 0;
+    background: var(--surface); color: var(--ink);
+    display: grid; place-items: center; font-size: 26px; cursor: pointer; flex: none;
+    transition: transform .45s var(--spring);
+    touch-action: manipulation;
   }
-  .icon-btn:active { transform: scale(.95); box-shadow: var(--shadow-press); }
+  .icon-btn:active { transform: scale(.88); transition-duration: .12s; }
+  #open-settings svg { transition: transform .6s var(--ease-out); }
+  #open-settings:active svg { transform: rotate(60deg); }
 
-  /* ---------- плитки ---------- */
-  .books { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
-  :root[data-layout="list"] .books { grid-template-columns: 1fr; gap: 14px; }
+  /* ---------- картки ---------- */
+  .books { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+  :root[data-layout="list"] .books { grid-template-columns: 1fr; gap: 12px; }
+  .books > li { animation: rise .6s var(--ease-out) both; animation-delay: calc(var(--n) * 55ms + 60ms); }
+  .books.again > li { animation-name: rise2; animation-duration: .45s; animation-delay: calc(var(--n) * 35ms); }
 
   .book {
     position: relative; display: flex; flex-direction: column; gap: 18px;
-    min-height: calc(200px * var(--scale)); height: 100%;
-    padding: 24px; border-radius: var(--radius);
-    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
-    color: inherit; text-decoration: none;
-    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+    min-height: calc(196px * var(--scale)); height: 100%;
+    padding: 22px; border-radius: var(--radius);
+    background: var(--bg-card); color: var(--ink); text-decoration: none;
+    transition: transform .5s var(--spring);
     touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
   }
-  .book:hover { border-color: color-mix(in srgb, var(--fg) 45%, var(--line)); }
-  .book:active { transform: scale(.975); box-shadow: var(--shadow-press); }
+  .book:active { transform: scale(.955); transition-duration: .14s; transition-timing-function: ease-out; }
+  @media (hover: hover) {
+    .book:hover { transform: translateY(-3px); }
+    .book:hover .go { transform: translate(2px, -2px); }
+  }
   .book:focus-visible, .icon-btn:focus-visible, .seg button:focus-visible, .done:focus-visible {
     outline: 4px solid var(--focus); outline-offset: 3px;
   }
 
   .tile {
-    width: calc(76px * var(--scale)); height: calc(76px * var(--scale)); border-radius: calc(var(--radius) - 6px);
-    display: grid; place-items: center; background: var(--bg-tile); color: var(--fg);
-    font-size: calc(40px * var(--scale)); flex: none;
+    width: calc(72px * var(--scale)); height: calc(72px * var(--scale)); border-radius: calc(var(--radius) - 8px);
+    display: grid; place-items: center; background: var(--chip); color: var(--fg);
+    font-size: calc(38px * var(--scale)); flex: none;
   }
   .tile svg.i { stroke-width: 1.9; }
-  .book .text { display: grid; gap: 4px; min-width: 0; margin-top: auto; }
-  .book h2 { margin: 0; font-size: calc(26px * var(--scale)); line-height: 1.15; font-weight: 800; text-wrap: balance; }
-  :root[data-font="cartoon"] .book h2 { font-weight: 700; }
-  .book .src { color: var(--ink-soft); font-size: calc(15px * var(--scale)); display: flex; align-items: center; gap: 6px; }
+  .book .text { display: grid; gap: 2px; min-width: 0; margin-top: auto; }
+  .book h2 {
+    margin: 0; font-size: calc(27px * var(--scale)); line-height: 1.12; font-weight: 900;
+    letter-spacing: -.01em; text-wrap: balance;
+  }
+  :root[data-font="strict"] .book h2 { font-weight: 800; letter-spacing: -.02em; }
+  .book .src {
+    color: var(--fg); font-weight: 700; font-size: calc(15px * var(--scale));
+    display: flex; align-items: center; gap: 6px; opacity: .9;
+  }
   .book .go {
-    position: absolute; top: 22px; right: 22px; width: 44px; height: 44px; border-radius: 50%;
-    display: grid; place-items: center; font-size: 22px; color: var(--fg); background: var(--bg-tile);
+    position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 22px; color: var(--fg); background: var(--chip);
+    transition: transform .4s var(--spring);
   }
 
-  :root[data-layout="list"] .book { flex-direction: row; align-items: center; min-height: calc(112px * var(--scale)); padding: 18px 20px; }
+  :root[data-layout="list"] .book { flex-direction: row; align-items: center; min-height: calc(108px * var(--scale)); padding: 18px; }
   :root[data-layout="list"] .book .text { margin-top: 0; flex: 1; }
   :root[data-layout="list"] .book .go { position: static; }
 
-  .b-hist { --bg-tile: var(--hist-bg); --fg: var(--hist-fg); }
-  .b-math { --bg-tile: var(--math-bg); --fg: var(--math-fg); }
-  .b-tech { --bg-tile: var(--tech-bg); --fg: var(--tech-fg); }
-  .b-lit  { --bg-tile: var(--lit-bg);  --fg: var(--lit-fg); }
-  .b-ukr  { --bg-tile: var(--ukr-bg);  --fg: var(--ukr-fg); }
+  .b-hist { --bg-card: var(--hist-bg); --fg: var(--hist-fg); }
+  .b-math { --bg-card: var(--math-bg); --fg: var(--math-fg); }
+  .b-tech { --bg-card: var(--tech-bg); --fg: var(--tech-fg); }
+  .b-lit  { --bg-card: var(--lit-bg);  --fg: var(--lit-fg); }
+  .b-ukr  { --bg-card: var(--ukr-bg);  --fg: var(--ukr-fg); }
 
-  .note { margin: 0; color: var(--ink-soft); font-size: calc(15px * var(--scale)); display: flex; align-items: center; gap: 8px; }
+  .note {
+    margin: 0; color: var(--ink-soft); font-size: calc(15px * var(--scale)); display: flex; align-items: center; gap: 8px;
+    animation: fade .6s var(--ease-out) .45s both;
+  }
 
-  /* ---------- налаштування ---------- */
+  @keyframes rise  { from { opacity: 0; transform: translateY(22px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes rise2 { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes fade  { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- налаштування (шторка) ---------- */
   dialog {
     border: none; padding: 0; margin: auto auto 0; width: min(560px, 100%);
-    max-height: calc(100% - 24px); overflow: auto;
+    max-height: calc(100% - 24px); overflow: auto; overscroll-behavior: contain;
     background: var(--surface); color: var(--ink);
-    border-radius: 28px 28px 0 0; box-shadow: 0 -10px 40px -10px rgba(0,0,0,.35);
+    border-radius: 30px 30px 0 0;
   }
-  @media (min-width: 640px) { dialog { margin: auto; border-radius: 28px; } }
-  dialog::backdrop { background: rgba(10, 14, 20, .45); }
-  dialog[open] { animation: up .22s ease-out; }
-  @keyframes up { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
-  .sheet { display: grid; gap: 22px; padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 22px); }
+  @media (min-width: 640px) { dialog { margin: auto; border-radius: 30px; } }
+  dialog::backdrop { background: rgba(0, 0, 0, .4); }
+  dialog[open] { animation: sheet-in .5s var(--ease-out) both; }
+  dialog[open]::backdrop { animation: fade .3s ease-out both; }
+  dialog.closing { animation: sheet-out .26s cubic-bezier(.4, 0, 1, 1) both; }
+  dialog.closing::backdrop { animation: fade-out .26s ease-in both; }
+  @keyframes sheet-in  { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes sheet-out { from { transform: none; } to { transform: translateY(100%); } }
+  @media (min-width: 640px) {
+    @keyframes sheet-in  { from { opacity: 0; transform: translateY(30px) scale(.96); } to { opacity: 1; transform: none; } }
+    @keyframes sheet-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(20px) scale(.97); } }
+  }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+  .grabber { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 8px auto -10px; }
+  @media (min-width: 640px) { .grabber { display: none; } }
+  .sheet { display: grid; gap: 22px; padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 22px); }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .sheet h2 { margin: 0; font-size: calc(26px * var(--scale)); font-weight: 800; }
-  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
-  legend {
-    padding: 0; margin-bottom: 10px; font-size: calc(13px * var(--scale)); font-weight: 800;
-    letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft);
+  .sheet h2 { margin: 0; font-size: calc(28px * var(--scale)); font-weight: 900; letter-spacing: -.01em; }
+  .sheet .icon-btn { background: var(--seg-bg); width: 48px; height: 48px; font-size: 22px; }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+  legend { padding: 0 0 8px 4px; font-size: calc(15px * var(--scale)); font-weight: 700; color: var(--ink-soft); }
+
+  /* сегментований перемикач у стилі iOS: повзунок їде через transform */
+  .seg {
+    --n: 3; --i: 0;
+    position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr);
+    padding: 4px; border-radius: 18px; background: var(--seg-bg);
   }
-  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+  .seg::before {
+    content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px;
+    width: calc((100% - 8px) / var(--n)); border-radius: 14px; background: var(--seg-thumb);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+    transform: translateX(calc(100% * var(--i)));
+    transition: transform .45s var(--spring);
+  }
   .seg button {
-    min-height: 64px; padding: 8px 10px; border-radius: 18px; border: 2px solid var(--line);
-    background: var(--bg); color: var(--ink); cursor: pointer;
-    font: inherit; font-size: calc(16px * var(--scale)); font-weight: 700;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    touch-action: manipulation; transition: border-color .12s ease, background .12s ease;
+    position: relative; z-index: 1;
+    min-height: 60px; padding: 6px 6px; border-radius: 14px; border: 0;
+    background: transparent; color: var(--ink-soft); cursor: pointer;
+    font: inherit; font-size: calc(15px * var(--scale)); font-weight: 700; line-height: 1.15;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    touch-action: manipulation; transition: color .25s ease, transform .3s var(--spring);
   }
+  .seg button:active { transform: scale(.94); }
+  .seg button[aria-pressed="true"] { color: var(--ink); }
   .seg button svg.i { font-size: 22px; }
-  .seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--ink); }
-  .seg button[data-font="cartoon"] { font-family: var(--font-cartoon); }
-  .seg button[data-font="soft"]    { font-family: var(--font-soft); }
-  .seg button[data-font="strict"]  { font-family: var(--font-strict); }
-  .seg .aa { font-size: calc(24px * var(--scale)); line-height: 1; }
+  .seg button[data-font="soft"]   { font-family: var(--font-soft); }
+  .seg button[data-font="strict"] { font-family: var(--font-strict); }
+  .seg .aa { font-size: calc(22px * var(--scale)); line-height: 1; font-weight: 800; }
   .done {
-    min-height: 60px; border-radius: 18px; border: 0; background: var(--accent); color: #fff;
+    min-height: 58px; border-radius: 18px; border: 0; background: var(--accent); color: #fff;
     font: inherit; font-size: calc(18px * var(--scale)); font-weight: 800; cursor: pointer;
+    transition: transform .4s var(--spring); touch-action: manipulation;
   }
-  :root[data-theme="dark"] .done { color: #0B1220; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .done { color: #0B1220; } }
+  .done:active { transform: scale(.96); transition-duration: .12s; }
 
   @media (max-width: 420px) {
-    .book { min-height: calc(168px * var(--scale)); padding: 20px; }
-    .book h2 { font-size: calc(23px * var(--scale)); }
-    .seg button { font-size: calc(14px * var(--scale)); }
+    .book { min-height: calc(164px * var(--scale)); padding: 20px; }
+    .book h2 { font-size: calc(24px * var(--scale)); }
+    .seg button { font-size: calc(13px * var(--scale)); }
   }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; animation: none !important; }
+    *, *::before, *::after, dialog::backdrop { transition: none !important; animation: none !important; }
   }
 </style>
 </head>
@@ -249,28 +298,28 @@
   </header>
 
   <main>
-    <ul class="books">
-      <li><a class="book b-hist" href="https://drive.google.com/file/d/1q4nO1a97Egmbeb3jZPUGlnkPiwxXa89s/view" target="_blank" rel="noopener">
+    <ul class="books" id="books">
+      <li style="--n:0"><a class="book b-hist" href="https://drive.google.com/file/d/1q4nO1a97Egmbeb3jZPUGlnkPiwxXa89s/view" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-history"/></svg></span>
         <div class="text"><h2>Історія</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
-      <li><a class="book b-math" href="https://drive.google.com/file/d/14jrMP4ftrvDGHu_lAiJOt7P1BWLHtEIQ/view" target="_blank" rel="noopener">
+      <li style="--n:1"><a class="book b-math" href="https://drive.google.com/file/d/14jrMP4ftrvDGHu_lAiJOt7P1BWLHtEIQ/view" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-math"/></svg></span>
         <div class="text"><h2>Математика</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
-      <li><a class="book b-tech" href="https://pidruchnyk.com.ua/3085-tekhnologii-10-11-klas-khodzycka.html" target="_blank" rel="noopener">
+      <li style="--n:2"><a class="book b-tech" href="https://pidruchnyk.com.ua/3085-tekhnologii-10-11-klas-khodzycka.html" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-tech"/></svg></span>
         <div class="text"><h2>Технології</h2><span class="src"><svg class="i"><use href="#i-globe"/></svg>pidruchnyk.com.ua</span></div>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
-      <li><a class="book b-lit" href="https://drive.google.com/file/d/1RZZprIbth1i1Rc1oAkR9rO6a0TJO05Tw/view" target="_blank" rel="noopener">
+      <li style="--n:3"><a class="book b-lit" href="https://drive.google.com/file/d/1RZZprIbth1i1Rc1oAkR9rO6a0TJO05Tw/view" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-lit"/></svg></span>
         <div class="text"><h2>Література</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
       </a></li>
-      <li><a class="book b-ukr" href="https://drive.google.com/file/d/1MA0c_Z6ELtU-oTyZCyZrK_wu3neiWMnx/view?pli=1" target="_blank" rel="noopener">
+      <li style="--n:4"><a class="book b-ukr" href="https://drive.google.com/file/d/1MA0c_Z6ELtU-oTyZCyZrK_wu3neiWMnx/view?pli=1" target="_blank" rel="noopener">
         <span class="tile"><svg class="i"><use href="#i-ukr"/></svg></span>
         <div class="text"><h2>Українська мова</h2><span class="src"><svg class="i"><use href="#i-file"/></svg>Google Диск · PDF</span></div>
         <span class="go" aria-hidden="true"><svg class="i"><use href="#i-open"/></svg></span>
@@ -282,6 +331,7 @@
 </div>
 
 <dialog id="settings" aria-labelledby="settings-title">
+  <div class="grabber" aria-hidden="true"></div>
   <form class="sheet" method="dialog">
     <div class="sheet-head">
       <h2 id="settings-title">Налаштування</h2>
@@ -291,7 +341,6 @@
     <fieldset>
       <legend>Шрифт</legend>
       <div class="seg" data-key="font">
-        <button type="button" id="font-cartoon" data-value="cartoon" data-font="cartoon"><span class="aa">Аа</span>Мультяшний</button>
         <button type="button" id="font-soft" data-value="soft" data-font="soft"><span class="aa">Аа</span>М'який</button>
         <button type="button" id="font-strict" data-value="strict" data-font="strict"><span class="aa">Аа</span>Строгий</button>
       </div>
@@ -317,8 +366,8 @@
     <fieldset>
       <legend>Розмір</legend>
       <div class="seg" data-key="size">
-        <button type="button" id="size-normal" data-value="normal"><span class="aa" style="font-size:18px">Аа</span>Звичайний</button>
-        <button type="button" id="size-large" data-value="large"><span class="aa" style="font-size:26px">Аа</span>Великий</button>
+        <button type="button" id="size-normal" data-value="normal"><span class="aa" style="font-size:17px">Аа</span>Звичайний</button>
+        <button type="button" id="size-large" data-value="large"><span class="aa" style="font-size:25px">Аа</span>Великий</button>
       </div>
     </fieldset>
 
@@ -331,10 +380,12 @@
     var KEY = 'pidruchnyky-settings';
     var root = document.documentElement;
     var dlg = document.getElementById('settings');
-    var defaults = { font: 'cartoon', theme: 'auto', layout: 'grid', size: 'normal' };
+    var books = document.getElementById('books');
+    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal' };
     var s = {};
     try { s = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
     for (var k in defaults) if (!s[k]) s[k] = defaults[k];
+    if (s.font !== 'strict') s.font = 'soft';   // старий «мультяшний» більше не існує
 
     function apply() {
       if (s.theme === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', s.theme);
@@ -342,27 +393,53 @@
       root.setAttribute('data-layout', s.layout);
       root.setAttribute('data-size', s.size);
       document.querySelectorAll('.seg').forEach(function (seg) {
-        seg.querySelectorAll('button').forEach(function (b) {
-          b.setAttribute('aria-pressed', String(b.dataset.value === s[seg.dataset.key]));
+        var btns = seg.querySelectorAll('button');
+        seg.style.setProperty('--n', btns.length);
+        btns.forEach(function (b, i) {
+          var on = b.dataset.value === s[seg.dataset.key];
+          b.setAttribute('aria-pressed', String(on));
+          if (on) seg.style.setProperty('--i', i);
         });
       });
       try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {}
     }
 
+    // Коротка повторна поява карток, коли змінюється їхній вигляд
+    function replay() {
+      books.classList.remove('again');
+      void books.offsetWidth;
+      books.classList.add('again');
+    }
+
     document.querySelectorAll('.seg').forEach(function (seg) {
       seg.addEventListener('click', function (e) {
         var b = e.target.closest('button');
-        if (!b) return;
+        if (!b || s[seg.dataset.key] === b.dataset.value) return;
         s[seg.dataset.key] = b.dataset.value;
         apply();
+        if (seg.dataset.key === 'layout' || seg.dataset.key === 'size') replay();
       });
     });
 
     document.getElementById('open-settings').addEventListener('click', function () {
+      dlg.classList.remove('closing');
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
     });
-    // Закриття по тапу на затемнений фон
-    dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+
+    // Плавне закриття: спершу анімація, потім close()
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function closeSheet() {
+      if (!dlg.open || dlg.classList.contains('closing')) return;
+      if (reduce) { dlg.close(); return; }
+      dlg.classList.add('closing');
+      var done = false;
+      function finish() { if (done) return; done = true; dlg.classList.remove('closing'); dlg.close(); }
+      dlg.addEventListener('animationend', finish, { once: true });
+      setTimeout(finish, 400);
+    }
+    dlg.querySelector('form').addEventListener('submit', function (e) { e.preventDefault(); closeSheet(); });
+    dlg.addEventListener('cancel', function (e) { e.preventDefault(); closeSheet(); });
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) closeSheet(); });
 
     apply();
   })();
