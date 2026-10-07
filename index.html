@@ -16,51 +16,126 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&display=swap">
 <script>
-  /* Спільна логіка налаштувань. Викликається ще до першого малювання, щоб не було «блимання». */
+  /* Спільна логіка налаштувань. Викликається ще до першого малювання, щоб не було «блимання».
+     Прості налаштування — у localStorage, фото фону і свій шрифт (великі файли) — в IndexedDB. */
   var PIDR = (function () {
     var KEY = 'pidruchnyky-settings';
-    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal', color: 'multi', radius: 'normal' };
+    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal', color: 'multi', radius: 'normal', bg: 'default', bgVis: 60 };
     var RADII = { square: 6, small: 14, normal: 26, round: 40 };
-    var FONTS = { soft: 1, strict: 1, pixel: 1 };
+    var FONTS = { soft: 1, strict: 1, pixel: 1, custom: 1 };
+    var HEX = /^#[0-9a-f]{6}$/i;
 
     function load() {
       var s = {};
       try { s = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) {}
-      for (var k in defaults) if (!s[k]) s[k] = defaults[k];
+      for (var k in defaults) if (s[k] == null || s[k] === '') s[k] = defaults[k];
       if (!FONTS[s.font]) s.font = 'soft';              // старий «мультяшний» більше не існує
       if (!(s.radius in RADII)) s.radius = 'normal';
-      if (s.color !== 'multi' && !/^#[0-9a-f]{6}$/i.test(s.color)) s.color = 'multi';
+      if (s.color !== 'multi' && !HEX.test(s.color)) s.color = 'multi';
+      if (s.bg !== 'default' && s.bg !== 'photo' && !HEX.test(s.bg)) s.bg = 'default';
+      s.bgVis = Math.min(100, Math.max(20, +s.bgVis || 60));
       return s;
     }
     function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+    function wipe() { try { localStorage.removeItem(KEY); } catch (e) {} }
 
     function rgb(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
     function hex(c) { return '#' + c.map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
     function mix(a, b, t) { a = rgb(a); b = rgb(b); return hex([0, 1, 2].map(function (i) { return a[i] + (b[i] - a[i]) * t; })); }
+    function luminance(h) {
+      var c = rgb(h).map(function (v) { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
+      return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+    }
 
     function applyRoot(s) {
-      var d = document.documentElement;
+      var d = document.documentElement, st = d.style;
       if (s.theme === 'light' || s.theme === 'dark') d.setAttribute('data-theme', s.theme); else d.removeAttribute('data-theme');
       d.setAttribute('data-font', s.font);
       d.setAttribute('data-layout', s.layout);
       d.setAttribute('data-size', s.size);
-      d.style.setProperty('--radius', RADII[s.radius] + 'px');
+      st.setProperty('--radius', RADII[s.radius] + 'px');
       if (s.color === 'multi') {
         d.removeAttribute('data-color');
       } else {
         // з одного кольору робимо пару «фон картки / колір іконки» для світлої і темної теми
         var c = s.color;
         d.setAttribute('data-color', 'uni');
-        d.style.setProperty('--uni-bg-l', mix(c, '#ffffff', .78));
-        d.style.setProperty('--uni-fg-l', mix(c, '#000000', .38));
-        d.style.setProperty('--uni-bg-d', mix(c, '#0b0b0d', .74));
-        d.style.setProperty('--uni-fg-d', mix(c, '#ffffff', .32));
+        st.setProperty('--uni-bg-l', mix(c, '#ffffff', .78));
+        st.setProperty('--uni-fg-l', mix(c, '#000000', .38));
+        st.setProperty('--uni-bg-d', mix(c, '#0b0b0d', .74));
+        st.setProperty('--uni-fg-d', mix(c, '#ffffff', .32));
       }
+      // фон сторінки: стандартний, свій колір або фото
+      st.setProperty('--scrim', String(1 - s.bgVis / 100));
+      if (HEX.test(s.bg)) {
+        var light = luminance(s.bg) > .4;
+        d.setAttribute('data-bg', 'color');
+        st.setProperty('--page-bg', s.bg);
+        st.setProperty('--page-ink', light ? '#111317' : '#F5F6F8');
+        st.setProperty('--page-ink-soft', light ? 'rgba(17,19,23,.6)' : 'rgba(245,246,248,.68)');
+      } else {
+        if (s.bg === 'photo') d.setAttribute('data-bg', 'photo'); else d.removeAttribute('data-bg');
+        st.removeProperty('--page-bg'); st.removeProperty('--page-ink'); st.removeProperty('--page-ink-soft');
+      }
+    }
+
+    /* ---- IndexedDB для файлів ---- */
+    var dbp = null;
+    function db() {
+      if (!dbp) dbp = new Promise(function (res, rej) {
+        if (!window.indexedDB) return rej(new Error('no-idb'));
+        var r = indexedDB.open('pidruchnyky', 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore('files'); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+      });
+      return dbp;
+    }
+    function tx(mode, fn) {
+      return db().then(function (d) {
+        return new Promise(function (res, rej) {
+          var t = d.transaction('files', mode), q = fn(t.objectStore('files'));
+          t.oncomplete = function () { res(q && q.result); };
+          t.onerror = t.onabort = function () { rej(t.error); };
+        });
+      });
+    }
+    var files = {
+      get: function (k) { return tx('readonly', function (o) { return o.get(k); }); },
+      set: function (k, v) { return tx('readwrite', function (o) { return o.put(v, k); }); },
+      del: function (k) { return tx('readwrite', function (o) { return o.delete(k); }); }
+    };
+
+    var bgUrl = null;
+    function showPhoto(blob) {
+      var d = document.documentElement;
+      if (bgUrl) URL.revokeObjectURL(bgUrl);
+      bgUrl = blob ? URL.createObjectURL(blob) : null;
+      if (bgUrl) { d.style.setProperty('--bg-img', 'url("' + bgUrl + '")'); d.setAttribute('data-photo', ''); }
+      else { d.style.removeProperty('--bg-img'); d.removeAttribute('data-photo'); }
+      return bgUrl;
+    }
+    function useFont(buf) {
+      var f = new FontFace('PidrUserFont', buf);
+      return f.load().then(function (ff) {
+        document.fonts.forEach(function (x) { if (x.family === 'PidrUserFont' || x.family === '"PidrUserFont"') document.fonts.delete(x); });
+        document.fonts.add(ff);
+        document.documentElement.setAttribute('data-user-font', '');
+        return ff;
+      });
     }
 
     var s = load();
     applyRoot(s);
-    return { s: s, save: save, applyRoot: applyRoot, rgb: rgb, hex: hex };
+    // фото і шрифт підвантажуємо одразу, не чекаючи решти сторінки
+    var ready = {
+      photo: files.get('bg').then(function (v) { return v && v.blob ? (showPhoto(v.blob), v) : null; }).catch(function () { return null; }),
+      font: files.get('font').then(function (v) { return v && v.buf ? useFont(v.buf).then(function () { return v; }) : null; }).catch(function () { return null; })
+    };
+    // просимо браузер не стирати дані сайту при нестачі місця (де це підтримується)
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+
+    return { photoUrl: function () { return bgUrl; }, s: s, save: save, wipe: wipe, applyRoot: applyRoot, rgb: rgb, hex: hex, files: files, showPhoto: showPhoto, useFont: useFont, ready: ready };
   })();
 </script>
 <style>
@@ -69,7 +144,7 @@
     src: url("fonts/Minecraft.ttf") format("truetype");
     font-weight: 400; font-style: normal; font-display: swap;
   }
-  /* Макет: великий заголовок як в iOS, під ним кольорові картки-віджети; на планшеті 2–3 в ряд, на телефоні — 1.
+  /* Макет: великий заголовок як в iOS, під ним кольорові картки-віджети; телефон — 2 в ряд, планшет/ПК — 3 + 2.
      Анімації лише через transform і opacity (композитор GPU), без blur і анімованих тіней — легко навіть для слабких планшетів. */
   :root {
     --bg: #F2F3F7;
@@ -81,6 +156,7 @@
     --focus: #0A7CFF;
     --seg-bg: #E6E8EE;
     --seg-thumb: #FFFFFF;
+    --danger: #D93036;
 
     /* кольори предметів: фон картки / колір іконки */
     --hist-bg: #FFE3C2;  --hist-fg: #B4560A;
@@ -96,6 +172,7 @@
     --font-soft: "Nunito", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
     --font-strict: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --font-pixel: "Minecraft", "Courier New", monospace;
+    --font-custom: "PidrUserFont", var(--font-soft);
     --font: var(--font-soft);
     --scale: 1;
     --radius: 26px;
@@ -109,7 +186,7 @@
     :root:not([data-theme="light"]) {
       --bg: #000000; --surface: #1C1C1F; --ink: #F5F6F8; --ink-soft: #9BA1AD; --line: #2C2D33;
       --accent: #3D96FF; --focus: #5AA7FF;
-      --seg-bg: #2A2B30; --seg-thumb: #4A4C54;
+      --seg-bg: #2A2B30; --seg-thumb: #4A4C54; --danger: #FF6369;
       --hist-bg: #3D2710; --hist-fg: #FFAE5E;
       --math-bg: #172A50; --math-fg: #8FB4FF;
       --tech-bg: #0F3A2C; --tech-fg: #5FDDB1;
@@ -122,7 +199,7 @@
   :root[data-theme="dark"] {
     --bg: #000000; --surface: #1C1C1F; --ink: #F5F6F8; --ink-soft: #9BA1AD; --line: #2C2D33;
     --accent: #3D96FF; --focus: #5AA7FF;
-    --seg-bg: #2A2B30; --seg-thumb: #4A4C54;
+    --seg-bg: #2A2B30; --seg-thumb: #4A4C54; --danger: #FF6369;
     --hist-bg: #3D2710; --hist-fg: #FFAE5E;
     --math-bg: #172A50; --math-fg: #8FB4FF;
     --tech-bg: #0F3A2C; --tech-fg: #5FDDB1;
@@ -137,6 +214,7 @@
 
   :root[data-font="strict"] { --font: var(--font-strict); }
   :root[data-font="pixel"]  { --font: var(--font-pixel); }
+  :root[data-font="custom"] { --font: var(--font-custom); }
   :root[data-size="large"]  { --scale: 1.18; }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -145,7 +223,7 @@
     margin: 0;
     min-height: 100vh; min-height: 100dvh;
     display: flex; flex-direction: column;
-    background: var(--bg);
+    background: var(--page-bg, var(--bg));
     color: var(--ink);
     font-family: var(--font);
     font-size: calc(17px * var(--scale));
@@ -154,21 +232,33 @@
     -webkit-tap-highlight-color: transparent;
     padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
     padding-block: calc(env(safe-area-inset-top, 0px) + 24px) calc(env(safe-area-inset-bottom, 0px) + 32px);
+    transition: background-color .3s ease;
   }
   :root[data-font="pixel"] body { -webkit-font-smoothing: none; }
-  .wrap { flex: 1; width: 100%; max-width: 1180px; margin-inline: auto; display: flex; flex-direction: column; gap: 26px; }
+  .wrap { position: relative; flex: 1; width: 100%; max-width: 1180px; margin-inline: auto; display: flex; flex-direction: column; gap: 26px; }
+
+  /* фото на фоні: окремий шар під сторінкою + «вуаль» кольору теми, щоб текст лишався читабельним */
+  .page-bg {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: var(--bg-img, none) center / cover no-repeat;
+    opacity: 0; transition: opacity .5s ease;
+  }
+  .page-bg::after { content: ""; position: absolute; inset: 0; background: var(--bg); opacity: var(--scrim, .4); }
+  :root[data-bg="photo"][data-photo] .page-bg { opacity: 1; }
+  :root[data-bg="photo"][data-photo] :is(h1, .brand small, .note) { text-shadow: 0 1px 2px var(--bg), 0 0 6px var(--bg); }
 
   svg.i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
   /* ---------- шапка ---------- */
   header { display: flex; align-items: flex-end; gap: 16px; animation: fade .5s var(--ease-out) both; }
   .brand { flex: 1; min-width: 0; display: grid; gap: 0; }
-  .brand small { font-size: calc(16px * var(--scale)); font-weight: 800; color: var(--ink-soft); }
+  .brand small { font-size: calc(16px * var(--scale)); font-weight: 800; color: var(--page-ink-soft, var(--ink-soft)); }
   h1 {
-    margin: 0; font-size: calc(clamp(34px, 6.4vw, 48px) * var(--scale)); line-height: 1.05;
+    margin: 0; font-size: calc(clamp(34px, 6.4vw, 48px) * var(--scale)); line-height: 1.05; color: var(--page-ink, var(--ink));
     font-weight: 900; letter-spacing: -.02em; text-wrap: balance;
   }
   :root[data-font="strict"] h1 { font-weight: 800; letter-spacing: -.03em; }
+  :root[data-font="custom"] h1 { letter-spacing: 0; }
   /* у шрифта Minecraft лише одне накреслення — без штучного «жирного», щоб пікселі лишались чіткими */
   :root[data-font="pixel"] body { font-synthesis: none; }
   :root[data-font="pixel"] :is(h1, h2, small, button, .aa, legend) { font-weight: 400; letter-spacing: 0; }
@@ -216,7 +306,7 @@
     .book:hover { transform: translateY(-3px); }
     .book:hover .go { transform: translate(2px, -2px); }
   }
-  .book:focus-visible, .icon-btn:focus-visible, .seg button:focus-visible, .done:focus-visible, .swatch:focus-visible {
+  .book:focus-visible, .icon-btn:focus-visible, .seg button:focus-visible, .done:focus-visible, .swatch:focus-visible, .btn:focus-visible {
     outline: 4px solid var(--focus); outline-offset: 3px;
   }
 
@@ -232,6 +322,7 @@
     letter-spacing: -.01em; text-wrap: balance; min-width: 0; overflow-wrap: break-word; hyphens: auto;
   }
   :root[data-font="strict"] .book h2 { font-weight: 800; letter-spacing: -.02em; }
+  :root[data-font="custom"] .book h2 { letter-spacing: 0; }
   .book .go {
     position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: min(50%, var(--radius-in));
     display: grid; place-items: center; font-size: 26px; color: var(--fg);
@@ -249,7 +340,8 @@
   .b-ukr  { --bg-card: var(--ukr-bg);  --fg: var(--ukr-fg); }
 
   .note {
-    margin: auto 0 0; padding-top: 16px; color: var(--ink-soft); font-size: calc(15px * var(--scale)); display: flex; align-items: center; gap: 8px;
+    margin: auto 0 0; padding-top: 16px; color: var(--page-ink-soft, var(--ink-soft)); font-size: calc(15px * var(--scale));
+    display: flex; align-items: center; gap: 8px;
     animation: fade .6s var(--ease-out) .45s both;
   }
 
@@ -261,7 +353,7 @@
   dialog {
     border: none; padding: 0; margin: auto auto 0; width: min(580px, 100%); max-width: 100%;
     max-height: calc(100% - 24px); overflow: auto; overscroll-behavior: contain;
-    background: var(--surface); color: var(--ink);
+    background: var(--surface); color: var(--ink); font-family: var(--font);
     border-radius: calc(var(--radius) + 4px) calc(var(--radius) + 4px) 0 0;
   }
   @media (min-width: 640px) { dialog { margin: auto; border-radius: calc(var(--radius) + 4px); } }
@@ -300,6 +392,7 @@
     transform: translateX(calc(100% * var(--i)));
     transition: transform .4s var(--ease-out);
   }
+  .seg.none::before { opacity: 0; }
   .seg button {
     position: relative; z-index: 1;
     min-height: 58px; padding: 6px 4px; border-radius: max(3px, calc(var(--radius-ui) - 4px)); border: 0;
@@ -315,14 +408,16 @@
   .seg button[data-font="strict"] { font-family: var(--font-strict); }
   .seg button[data-font="pixel"]  { font-family: var(--font-pixel); font-synthesis: none; }
   .seg button[data-font="pixel"], .seg button[data-font="pixel"] .aa { font-weight: 400; }
+  .seg button[data-font="custom"] .aa { font-family: var(--font-custom); }
   .seg .aa { font-size: calc(22px * var(--scale)); line-height: 1; font-weight: 800; }
   .seg .shape { width: 24px; height: 24px; border: 2.5px solid currentColor; display: block; }
 
-  /* кольори */
+  /* кружечки кольорів */
   .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
   .swatch {
     position: relative; width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
     background: var(--c); color: #fff; display: grid; place-items: center; font-size: 24px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .1);
     transition: transform .35s var(--spring); touch-action: manipulation;
   }
   .swatch:active { transform: scale(.88); transition-duration: .12s; }
@@ -331,23 +426,25 @@
     opacity: 0; transform: scale(.85); transition: opacity .2s ease, transform .35s var(--spring);
   }
   .swatch[aria-pressed="true"]::after { opacity: 1; transform: none; }
-  .swatch svg.i { stroke-width: 3; opacity: 0; transform: scale(.5); transition: opacity .2s ease, transform .35s var(--spring); }
-  .swatch[aria-pressed="true"] svg.i { opacity: 1; transform: none; }
+  .swatch > svg.i { stroke-width: 3; opacity: 0; transform: scale(.5); transition: opacity .2s ease, transform .35s var(--spring); filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .55)); }
+  .swatch[aria-pressed="true"] > svg.i { opacity: 1; transform: none; }
   .swatch.multi { background: conic-gradient(#FFAE5E, #FFD84D, #5FDDB1, #8FB4FF, #FF92C6, #FFAE5E); }
+  .swatch.auto-bg { background: linear-gradient(135deg, #F2F3F7 50%, #000 50%); }
   .swatch.custom { background: conic-gradient(from 90deg, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30); }
-  .swatch.custom .plus { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #111; display: grid; place-items: center; font-size: 18px; pointer-events: none; }
-  .swatch.custom .plus svg.i { opacity: 1; transform: none; stroke-width: 2.6; }
+  .swatch .plus { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #111; display: grid; place-items: center; font-size: 18px; pointer-events: none; }
+  .swatch .plus svg.i { stroke-width: 2.6; transition: transform .35s var(--spring); }
   .swatch.custom[aria-pressed="true"] .plus { background: var(--c); color: #fff; }
-  .swatch.custom .plus svg.i { transition: transform .35s var(--spring); }
-  .swatch.custom[aria-expanded="true"] .plus svg.i { transform: rotate(45deg); }
+  .swatch[aria-expanded="true"] .plus svg.i { transform: rotate(45deg); }
+  .swatch.photo { background: var(--seg-bg) var(--thumb, none) center / cover; color: var(--ink); }
+  .swatch.photo .plus { background: var(--surface); color: var(--ink); }
 
   /* власна палітра: квадрат насиченість/яскравість + смуга відтінку + HEX */
-  .picker {
+  .panel {
     display: grid; gap: 14px; padding: 14px; margin-top: 6px; min-width: 0;
     border-radius: var(--radius-ui); background: var(--seg-bg);
     animation: rise .4s var(--ease-out) both;
   }
-  .picker[hidden] { display: none; }
+  .panel[hidden] { display: none; }
   .sv {
     --hue-c: #0A7CFF;
     position: relative; height: 190px; border-radius: max(6px, calc(var(--radius-ui) - 6px)); cursor: crosshair;
@@ -377,8 +474,47 @@
     font-variant-numeric: tabular-nums;
   }
   .picker-row input:focus { outline: none; border-color: var(--accent); }
-  .picker-row input[aria-invalid="true"] { border-color: #E5484D; }
+  .picker-row input[aria-invalid="true"] { border-color: var(--danger); }
 
+  /* фото фону */
+  .photo-row { display: flex; align-items: center; gap: 14px; }
+  .thumb { width: 84px; height: 84px; border-radius: max(6px, calc(var(--radius-ui) - 6px)); background: var(--surface) var(--thumb, none) center / cover; flex: none; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; min-width: 0; }
+  .btn {
+    min-height: 48px; padding: 0 16px; border-radius: max(6px, calc(var(--radius-ui) - 6px)); border: 0; cursor: pointer;
+    background: var(--surface); color: var(--ink); font: inherit; font-size: calc(15px * var(--scale)); font-weight: 700;
+    display: inline-flex; align-items: center; gap: 8px; touch-action: manipulation;
+    transition: transform .35s var(--spring);
+  }
+  .btn:active { transform: scale(.95); transition-duration: .12s; }
+  .btn svg.i { font-size: 20px; }
+  .btn.danger { color: var(--danger); }
+  .range { display: grid; gap: 10px; font-weight: 700; color: var(--ink-soft); }
+  .range .row { display: flex; justify-content: space-between; gap: 8px; }
+  .range output { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .range input { width: 100%; height: 34px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+  /* свій шрифт */
+  .file-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 4px 4px 0; color: var(--ink-soft); font-size: calc(15px * var(--scale)); }
+  .file-row[hidden] { display: none; }
+  .file-row b { color: var(--ink); font-weight: 700; overflow-wrap: anywhere; }
+  .file-row .grow { flex: 1; min-width: 0; }
+  .link { border: 0; background: none; padding: 8px 4px; font: inherit; font-weight: 800; color: var(--accent); cursor: pointer; }
+  .link.danger { color: var(--danger); }
+  .msg { margin: 0; padding: 0 4px; font-size: calc(14px * var(--scale)); font-weight: 700; color: var(--danger); }
+  .msg[hidden] { display: none; }
+  .msg.ok { color: var(--ink-soft); }
+
+  /* плашка про збереження */
+  .storage {
+    display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px;
+    border-radius: var(--radius-ui); background: var(--seg-bg); color: var(--ink-soft);
+    font-size: calc(14px * var(--scale)); line-height: 1.45;
+  }
+  .storage svg.i { font-size: 22px; color: var(--accent); margin-top: 1px; }
+  .storage p { margin: 0; }
+  .storage p + p { margin-top: 6px; }
+  .storage b { color: var(--ink); }
 
   .done {
     min-height: 58px; border-radius: var(--radius-ui); border: 0; background: var(--accent); color: #fff;
@@ -388,6 +524,7 @@
   .done:active { transform: scale(.96); transition-duration: .12s; }
   :root[data-theme="dark"] .done { color: #0B0B0D; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .done { color: #0B0B0D; } }
+  .reset { justify-self: center; margin-top: -6px; }
 
   /* телефон: компактні плитки по 2 в ряд */
   @media (max-width: 639px) {
@@ -395,9 +532,10 @@
     .book { min-height: calc(138px * var(--scale)); padding: 16px; gap: 12px; border-radius: min(var(--radius), 26px); }
     .tile { font-size: calc(38px * var(--scale)); width: calc(44px * var(--scale)); height: calc(44px * var(--scale)); }
     .book h2 { font-size: calc(clamp(15px, 5vw, 24px) * var(--scale)); hyphens: manual; }
-  }
-  @media (max-width: 360px) {
-    .book { padding: 14px; }
+    /* піксельний і свій шрифт зазвичай ширші — трохи менший кегль, щоб слова не рвались */
+    :root:is([data-font="pixel"], [data-font="custom"]) .book h2 { font-size: calc(clamp(13px, 4.3vw, 22px) * var(--scale)); }
+    .seg[data-key="font"] button { overflow-wrap: normal; }
+    .seg button[data-font="pixel"] { font-size: calc(11.5px * var(--scale)); }
     .book .go { top: 12px; right: 10px; font-size: 22px; width: 36px; height: 36px; }
     :root[data-layout="list"] .book { min-height: calc(84px * var(--scale)); padding: 14px 16px; }
     .icon-btn { width: 52px; height: 52px; font-size: 24px; }
@@ -405,6 +543,10 @@
     .seg button { font-size: calc(13px * var(--scale)); min-height: 54px; overflow-wrap: anywhere; }
     .swatches { gap: 8px; }
     .swatch { width: 44px; height: 44px; }
+    .swatch .plus { width: 26px; height: 26px; font-size: 16px; }
+  }
+  @media (max-width: 360px) {
+    .book { padding: 14px; }
   }
   /* ПК: більше повітря і крупніші картки */
   @media (min-width: 1100px) {
@@ -420,6 +562,7 @@
 </style>
 </head>
 <body>
+<div class="page-bg" aria-hidden="true"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <!-- Іконки в стилі Lucide (ISC). -->
   <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M4 18h16"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M12 3 21 8.5H3z"/></symbol>
@@ -431,12 +574,16 @@
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
   <symbol id="i-auto" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></symbol>
 </svg>
 
 <div class="wrap">
@@ -492,7 +639,7 @@
     </div>
 
     <fieldset>
-      <legend>Колір</legend>
+      <legend>Колір карток</legend>
       <div class="swatches" id="swatches">
         <button type="button" class="swatch multi" id="color-multi" data-color="multi" aria-label="Різнокольорові"><svg class="i"><use href="#i-check"/></svg></button>
         <button type="button" class="swatch" id="color-blue" data-color="#0A7CFF" style="--c:#0A7CFF" aria-label="Синій"><svg class="i"><use href="#i-check"/></svg></button>
@@ -503,18 +650,47 @@
         <button type="button" class="swatch" id="color-pink" data-color="#F2508F" style="--c:#F2508F" aria-label="Рожевий"><svg class="i"><use href="#i-check"/></svg></button>
         <button type="button" class="swatch" id="color-purple" data-color="#8E5CF7" style="--c:#8E5CF7" aria-label="Фіолетовий"><svg class="i"><use href="#i-check"/></svg></button>
         <button type="button" class="swatch" id="color-gray" data-color="#7A808C" style="--c:#7A808C" aria-label="Графіт"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch custom" id="color-custom" aria-label="Свій колір" aria-expanded="false" aria-controls="picker">
+        <button type="button" class="swatch custom" id="color-custom" aria-label="Свій колір карток" aria-expanded="false" aria-controls="color-picker">
           <span class="plus"><svg class="i"><use href="#i-plus"/></svg></span>
         </button>
       </div>
-      <div class="picker" id="picker" hidden>
-        <div class="sv" id="sv" aria-label="Насиченість і яскравість"><span class="knob" id="sv-knob"></span></div>
-        <div class="hue" id="hue" aria-label="Відтінок"><span class="knob" id="hue-knob"></span></div>
-        <div class="picker-row">
-          <span class="preview" id="preview"></span>
-          <label for="hex">HEX <input id="hex" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="7" value="#0A7CFF"></label>
-        </div>
+      <div class="panel" id="color-picker" hidden></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Фон</legend>
+      <div class="swatches" id="bg-swatches">
+        <button type="button" class="swatch auto-bg" id="bg-default" data-bg="default" aria-label="Стандартний фон"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-white" data-bg="#FFFFFF" style="--c:#FFFFFF" aria-label="Білий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-sky" data-bg="#E4EEFF" style="--c:#E4EEFF" aria-label="Блакитний"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-mint" data-bg="#E2F5EA" style="--c:#E2F5EA" aria-label="М'ятний"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-peach" data-bg="#FFEEDD" style="--c:#FFEEDD" aria-label="Персиковий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-lilac" data-bg="#EFE8FF" style="--c:#EFE8FF" aria-label="Бузковий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-navy" data-bg="#0E1A2F" style="--c:#0E1A2F" aria-label="Темно-синій"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch" id="bg-graphite" data-bg="#1C1C1F" style="--c:#1C1C1F" aria-label="Графітовий"><svg class="i"><use href="#i-check"/></svg></button>
+        <button type="button" class="swatch custom" id="bg-custom" aria-label="Свій колір фону" aria-expanded="false" aria-controls="bg-picker">
+          <span class="plus"><svg class="i"><use href="#i-plus"/></svg></span>
+        </button>
+        <button type="button" class="swatch photo" id="bg-photo" aria-label="Своє фото на фоні" aria-expanded="false" aria-controls="photo-panel">
+          <span class="plus"><svg class="i"><use href="#i-image"/></svg></span>
+        </button>
       </div>
+      <div class="panel" id="bg-picker" hidden></div>
+      <div class="panel" id="photo-panel" hidden>
+        <div class="photo-row">
+          <span class="thumb" id="photo-thumb"></span>
+          <div class="actions">
+            <button type="button" class="btn" id="photo-change"><svg class="i"><use href="#i-upload"/></svg>Інше фото</button>
+            <button type="button" class="btn danger" id="photo-remove"><svg class="i"><use href="#i-trash"/></svg>Прибрати</button>
+          </div>
+        </div>
+        <label class="range" for="photo-vis">
+          <span class="row"><span>Видимість фото</span><output id="photo-vis-out">60%</output></span>
+          <input type="range" id="photo-vis" min="20" max="100" step="5" value="60">
+        </label>
+      </div>
+      <input type="file" id="photo-file" accept="image/*" hidden>
+      <p class="msg" id="bg-msg" role="status" hidden></p>
     </fieldset>
 
     <fieldset>
@@ -523,7 +699,15 @@
         <button type="button" id="font-soft" data-value="soft" data-font="soft"><span class="aa">Аа</span>М'який</button>
         <button type="button" id="font-strict" data-value="strict" data-font="strict"><span class="aa">Аа</span>Строгий</button>
         <button type="button" id="font-pixel" data-value="pixel" data-font="pixel"><span class="aa">Аа</span>Майнкрафт</button>
+        <button type="button" id="font-custom" data-value="custom" data-font="custom"><span class="aa">Аа</span>Свій</button>
       </div>
+      <div class="file-row" id="font-row" hidden>
+        <span class="grow">Файл: <b id="font-name"></b></span>
+        <button type="button" class="link" id="font-change">Змінити</button>
+        <button type="button" class="link danger" id="font-remove">Прибрати</button>
+      </div>
+      <input type="file" id="font-file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" hidden>
+      <p class="msg" id="font-msg" role="status" hidden></p>
     </fieldset>
 
     <fieldset>
@@ -561,38 +745,70 @@
       </div>
     </fieldset>
 
+    <div class="storage">
+      <svg class="i"><use href="#i-save"/></svg>
+      <div>
+        <p><b>Налаштування зберігаються тільки в цьому браузері на цьому пристрої.</b> На іншому телефоні чи комп'ютері їх доведеться виставити заново.</p>
+        <p>Вони зітруться, якщо очистити «файли cookie та дані сайтів» або відкрити сайт в режимі інкогніто. Звичайне очищення кешу (картинок і файлів) їх не зачіпає. У Safari на iPhone та iPad дані можуть зникнути, якщо не заходити на сайт 7 днів — щоб цього не було, додайте сайт на головний екран.</p>
+      </div>
+    </div>
+
     <button class="done" type="submit">Готово</button>
+    <button type="button" class="link danger reset" id="reset">Скинути все налаштування</button>
   </form>
 </dialog>
 
 <script>
   (function () {
     var s = PIDR.s;
-    var dlg = document.getElementById('settings');
-    var books = document.getElementById('books');
-    var swatches = document.querySelectorAll('#swatches .swatch[data-color]');
-    var customBtn = document.getElementById('color-custom');
+    var $ = function (id) { return document.getElementById(id); };
+    var dlg = $('settings');
+    var books = $('books');
+    var cardSwatches = document.querySelectorAll('#swatches .swatch[data-color]');
+    var bgSwatches = document.querySelectorAll('#bg-swatches .swatch[data-bg]');
+    var colorCustom = $('color-custom'), bgCustom = $('bg-custom'), bgPhoto = $('bg-photo');
+    var hasPhoto = false, fontInfo = null;
+    var HEX = /^#[0-9a-f]{6}$/i;
 
     function apply(noSave) {
       PIDR.applyRoot(s);
       document.querySelectorAll('.seg').forEach(function (seg) {
-        var btns = seg.querySelectorAll('button');
+        var btns = seg.querySelectorAll('button'), any = false;
         seg.style.setProperty('--n', btns.length);
         btns.forEach(function (b, i) {
           var on = b.dataset.value === s[seg.dataset.key];
           b.setAttribute('aria-pressed', String(on));
-          if (on) seg.style.setProperty('--i', i);
+          if (on) { seg.style.setProperty('--i', i); any = true; }
         });
+        seg.classList.toggle('none', !any);
       });
+      // колір карток
       var preset = false;
-      swatches.forEach(function (b) {
+      cardSwatches.forEach(function (b) {
         var on = b.dataset.color.toLowerCase() === s.color.toLowerCase();
         if (on) preset = true;
         b.setAttribute('aria-pressed', String(on));
       });
-      customBtn.setAttribute('aria-pressed', String(!preset));
-      if (!preset) customBtn.style.setProperty('--c', s.color);
+      colorCustom.setAttribute('aria-pressed', String(!preset));
+      if (!preset) colorCustom.style.setProperty('--c', s.color);
+      // фон
+      var bgPreset = false;
+      bgSwatches.forEach(function (b) {
+        var on = b.dataset.bg.toLowerCase() === String(s.bg).toLowerCase();
+        if (on) bgPreset = true;
+        b.setAttribute('aria-pressed', String(on));
+      });
+      var bgIsCustom = !bgPreset && HEX.test(s.bg);
+      bgCustom.setAttribute('aria-pressed', String(bgIsCustom));
+      if (bgIsCustom) bgCustom.style.setProperty('--c', s.bg);
+      bgPhoto.setAttribute('aria-pressed', String(s.bg === 'photo'));
       if (!noSave) PIDR.save(s);
+    }
+
+    function msg(el, text, ok) {
+      el.textContent = text || '';
+      el.hidden = !text;
+      el.classList.toggle('ok', !!ok);
     }
 
     // Коротка повторна поява карток, коли змінюється їхній вигляд
@@ -606,26 +822,15 @@
       seg.addEventListener('click', function (e) {
         var b = e.target.closest('button');
         if (!b || s[seg.dataset.key] === b.dataset.value) return;
+        // «Свій» шрифт без файлу — спершу просимо вибрати файл
+        if (seg.dataset.key === 'font' && b.dataset.value === 'custom' && !fontInfo) { $('font-file').click(); return; }
         s[seg.dataset.key] = b.dataset.value;
         apply();
         if (seg.dataset.key === 'layout' || seg.dataset.key === 'size') replay();
       });
     });
 
-    swatches.forEach(function (b) {
-      b.addEventListener('click', function () {
-        s.color = b.dataset.color; apply();
-        if (s.color !== 'multi') syncPicker(s.color);
-      });
-    });
-
-    /* ---------- власна палітра ---------- */
-    var picker = document.getElementById('picker');
-    var sv = document.getElementById('sv'), svKnob = document.getElementById('sv-knob');
-    var hue = document.getElementById('hue'), hueKnob = document.getElementById('hue-knob');
-    var hexIn = document.getElementById('hex'), preview = document.getElementById('preview');
-    var H = 212, S = 1, V = 1;   // відтінок 0–360, насиченість і яскравість 0–1
-
+    /* ---------- палітра (одна логіка для карток і для фону) ---------- */
     function hsvToHex(h, sat, val) {
       function f(n) { var k = (n + h / 60) % 6; return (val - val * sat * Math.max(Math.min(k, 4 - k, 1), 0)) * 255; }
       return PIDR.hex([f(5), f(3), f(1)]);
@@ -637,74 +842,248 @@
       h *= 60; if (h < 0) h += 360;
       return [h, mx ? d / mx : 0, mx];
     }
-    function paint() {
-      var cur = hsvToHex(H, S, V);
-      sv.style.setProperty('--hue-c', 'hsl(' + H + ',100%,50%)');
-      svKnob.style.left = (S * 100) + '%';
-      svKnob.style.top = ((1 - V) * 100) + '%';
-      svKnob.style.setProperty('--k', cur);
-      hueKnob.style.left = (H / 360 * 100) + '%';
-      hueKnob.style.setProperty('--k', 'hsl(' + H + ',100%,50%)');
-      preview.style.setProperty('--k', cur);
-      if (document.activeElement !== hexIn) { hexIn.value = cur.toUpperCase(); hexIn.removeAttribute('aria-invalid'); }
-    }
-    function syncPicker(hx) { var v = hexToHsv(hx); if (v[1] > 0.02) H = v[0]; S = v[1]; V = v[2]; paint(); }
 
-    // зміни під час перетягування застосовуємо раз на кадр — плавно і без зайвої роботи
-    var pending = false;
-    function commit(save) {
-      s.color = hsvToHex(H, S, V);
-      paint();
-      if (save) { apply(); return; }
-      if (pending) return;
-      pending = true;
-      requestAnimationFrame(function () { pending = false; apply(true); });
-    }
-    function draggable(el, move) {
-      el.addEventListener('pointerdown', function (e) {
-        e.preventDefault();
-        var r = el.getBoundingClientRect();
-        try { el.setPointerCapture(e.pointerId); } catch (err) {}
-        el.classList.add('dragging');
-        function mv(ev) { move(Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height))); commit(false); }
-        function up() {
-          el.classList.remove('dragging');
-          el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
-          commit(true);
-        }
-        el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
-        mv(e);
+    function makePicker(root, onChange) {
+      var id = root.id;
+      root.innerHTML =
+        '<div class="sv" aria-label="Насиченість і яскравість"><span class="knob"></span></div>' +
+        '<div class="hue" aria-label="Відтінок"><span class="knob"></span></div>' +
+        '<div class="picker-row"><span class="preview"></span>' +
+        '<label for="' + id + '-hex">HEX <input id="' + id + '-hex" type="text" autocomplete="off" spellcheck="false" maxlength="7"></label></div>';
+      var sv = root.querySelector('.sv'), svKnob = sv.firstChild;
+      var hue = root.querySelector('.hue'), hueKnob = hue.firstChild;
+      var hexIn = root.querySelector('input'), preview = root.querySelector('.preview');
+      var H = 212, S = 1, V = 1;   // відтінок 0–360, насиченість і яскравість 0–1
+
+      function paint() {
+        var cur = hsvToHex(H, S, V);
+        sv.style.setProperty('--hue-c', 'hsl(' + H + ',100%,50%)');
+        svKnob.style.left = (S * 100) + '%';
+        svKnob.style.top = ((1 - V) * 100) + '%';
+        svKnob.style.setProperty('--k', cur);
+        hueKnob.style.left = (H / 360 * 100) + '%';
+        hueKnob.style.setProperty('--k', 'hsl(' + H + ',100%,50%)');
+        preview.style.setProperty('--k', cur);
+        if (document.activeElement !== hexIn) { hexIn.value = cur.toUpperCase(); hexIn.removeAttribute('aria-invalid'); }
+      }
+      function sync(hx) { var v = hexToHsv(hx); if (v[1] > 0.02) H = v[0]; S = v[1]; V = v[2]; paint(); }
+
+      // під час перетягування застосовуємо зміни раз на кадр — плавно і без зайвої роботи
+      var pending = false;
+      function commit(final) {
+        var cur = hsvToHex(H, S, V);
+        paint();
+        if (final) { onChange(cur, true); return; }
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(function () { pending = false; onChange(hsvToHex(H, S, V), false); });
+      }
+      function draggable(el, move) {
+        el.addEventListener('pointerdown', function (e) {
+          e.preventDefault();
+          var r = el.getBoundingClientRect();
+          try { el.setPointerCapture(e.pointerId); } catch (err) {}
+          el.classList.add('dragging');
+          function mv(ev) { move(Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height))); commit(false); }
+          function up() {
+            el.classList.remove('dragging');
+            el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+            commit(true);
+          }
+          el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+          mv(e);
+        });
+      }
+      draggable(sv, function (x, y) { S = x; V = 1 - y; });
+      draggable(hue, function (x) { H = Math.min(359.9, x * 360); });
+
+      hexIn.addEventListener('input', function () {
+        var v = hexIn.value.trim(); if (v[0] !== '#') v = '#' + v;
+        if (HEX.test(v)) {
+          hexIn.removeAttribute('aria-invalid');
+          var hsv = hexToHsv(v); if (hsv[1] > 0.02) H = hsv[0]; S = hsv[1]; V = hsv[2];
+          paint(); onChange(v.toLowerCase(), true);
+        } else hexIn.setAttribute('aria-invalid', 'true');
       });
+      hexIn.addEventListener('blur', paint);
+      paint();
+      return { sync: sync, commit: commit };
     }
-    draggable(sv, function (x, y) { S = x; V = 1 - y; });
-    draggable(hue, function (x) { H = Math.min(359.9, x * 360); });
 
-    hexIn.addEventListener('input', function () {
-      var v = hexIn.value.trim(); if (v[0] !== '#') v = '#' + v;
-      if (/^#[0-9a-f]{6}$/i.test(v)) {
-        hexIn.removeAttribute('aria-invalid');
-        var hsv = hexToHsv(v); if (hsv[1] > 0.02) H = hsv[0]; S = hsv[1]; V = hsv[2];
-        s.color = v.toLowerCase(); paint(); apply();
-      } else hexIn.setAttribute('aria-invalid', 'true');
+    function togglePanel(btn, panel, open) {
+      if (open === undefined) open = panel.hidden;
+      panel.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+      return open;
+    }
+
+    /* ---------- колір карток ---------- */
+    var colorPanel = $('color-picker');
+    var cardPicker = makePicker(colorPanel, function (hx, final) { s.color = hx; apply(!final); });
+    cardSwatches.forEach(function (b) {
+      b.addEventListener('click', function () {
+        s.color = b.dataset.color; apply();
+        if (s.color !== 'multi') cardPicker.sync(s.color);
+      });
     });
-    hexIn.addEventListener('blur', paint);
-
-    customBtn.addEventListener('click', function () {
-      var open = picker.hidden;
-      picker.hidden = !open;
-      customBtn.setAttribute('aria-expanded', String(open));
-      if (open) {
-        syncPicker(s.color === 'multi' ? '#0a7cff' : s.color);
-        if (s.color === 'multi') commit(true);   // одразу показуємо, як виглядатиме один колір
+    colorCustom.addEventListener('click', function () {
+      if (togglePanel(colorCustom, colorPanel)) {
+        cardPicker.sync(s.color === 'multi' ? '#0a7cff' : s.color);
+        if (s.color === 'multi') cardPicker.commit(true);   // одразу показуємо, як виглядатиме один колір
       }
     });
 
-    document.getElementById('open-settings').addEventListener('click', function () {
+    /* ---------- фон ---------- */
+    var bgPanel = $('bg-picker'), photoPanel = $('photo-panel'), bgMsg = $('bg-msg');
+    var photoFile = $('photo-file'), photoVis = $('photo-vis'), photoVisOut = $('photo-vis-out');
+    var bgPicker = makePicker(bgPanel, function (hx, final) { s.bg = hx; apply(!final); });
+
+    bgSwatches.forEach(function (b) {
+      b.addEventListener('click', function () {
+        s.bg = b.dataset.bg; apply();
+        togglePanel(bgPhoto, photoPanel, false);
+        if (HEX.test(s.bg)) bgPicker.sync(s.bg);
+      });
+    });
+    bgCustom.addEventListener('click', function () {
+      togglePanel(bgPhoto, photoPanel, false);
+      if (togglePanel(bgCustom, bgPanel)) {
+        bgPicker.sync(HEX.test(s.bg) ? s.bg : '#e4eeff');
+        if (!HEX.test(s.bg)) bgPicker.commit(true);
+      }
+    });
+    bgPhoto.addEventListener('click', function () {
+      togglePanel(bgCustom, bgPanel, false);
+      if (!hasPhoto) { photoFile.click(); return; }
+      if (s.bg !== 'photo') { s.bg = 'photo'; apply(); togglePanel(bgPhoto, photoPanel, true); }
+      else togglePanel(bgPhoto, photoPanel);
+    });
+    $('photo-change').addEventListener('click', function () { photoFile.click(); });
+
+    function setThumb(url) {
+      var v = url ? 'url("' + url + '")' : '';
+      [bgPhoto, $('photo-thumb')].forEach(function (el) { if (v) el.style.setProperty('--thumb', v); else el.style.removeProperty('--thumb'); });
+    }
+
+    // Стискаємо фото до 2000 px по довшій стороні (JPEG) — швидко вантажиться і не забиває пам'ять
+    function shrinkImage(file) {
+      return new Promise(function (res, rej) {
+        var url = URL.createObjectURL(file), img = new Image();
+        img.onload = function () {
+          var k = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * k));
+          c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          if (c.toBlob) c.toBlob(function (b) { b ? res(b) : rej(new Error('blob')); }, 'image/jpeg', .85);
+          else rej(new Error('blob'));
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('decode')); };
+        img.src = url;
+      });
+    }
+
+    photoFile.addEventListener('change', function () {
+      var f = photoFile.files && photoFile.files[0];
+      photoFile.value = '';
+      if (!f) return;
+      msg(bgMsg, 'Обробляю фото…', true);
+      shrinkImage(f).then(function (blob) {
+        return PIDR.files.set('bg', { blob: blob, name: f.name }).then(function () { return blob; });
+      }).then(function (blob) {
+        hasPhoto = true;
+        setThumb(PIDR.showPhoto(blob));
+        s.bg = 'photo'; apply();
+        togglePanel(bgPhoto, photoPanel, true);
+        msg(bgMsg, '');
+      }).catch(function () {
+        msg(bgMsg, 'Не вдалося відкрити це фото. Спробуйте інше (JPG або PNG).');
+      });
+    });
+
+    $('photo-remove').addEventListener('click', function () {
+      PIDR.files.del('bg').catch(function () {});
+      hasPhoto = false;
+      PIDR.showPhoto(null); setThumb(null);
+      if (s.bg === 'photo') s.bg = 'default';
+      apply();
+      togglePanel(bgPhoto, photoPanel, false);
+    });
+
+    photoVis.value = s.bgVis; photoVisOut.textContent = s.bgVis + '%';
+    photoVis.addEventListener('input', function () {
+      s.bgVis = +photoVis.value; photoVisOut.textContent = s.bgVis + '%';
+      document.documentElement.style.setProperty('--scrim', String(1 - s.bgVis / 100));
+    });
+    photoVis.addEventListener('change', function () { PIDR.save(s); });
+
+    PIDR.ready.photo.then(function (v) {
+      if (v) { hasPhoto = true; setThumb(PIDR.photoUrl()); }
+      else if (s.bg === 'photo') { s.bg = 'default'; apply(); }
+    });
+
+    /* ---------- свій шрифт ---------- */
+    var fontFile = $('font-file'), fontMsg = $('font-msg'), fontRow = $('font-row');
+    function showFont(info) {
+      fontInfo = info;
+      fontRow.hidden = !info;
+      $('font-name').textContent = info ? info.name : '';
+    }
+    $('font-change').addEventListener('click', function () { fontFile.click(); });
+    fontFile.addEventListener('change', function () {
+      var f = fontFile.files && fontFile.files[0];
+      fontFile.value = '';
+      if (!f) return;
+      if (f.size > 15 * 1024 * 1024) { msg(fontMsg, 'Файл завеликий (більше 15 МБ).'); return; }
+      msg(fontMsg, 'Завантажую шрифт…', true);
+      var rd = new FileReader();
+      rd.onload = function () {
+        var buf = rd.result;
+        PIDR.useFont(buf).then(function () {
+          return PIDR.files.set('font', { buf: buf, name: f.name });
+        }).then(function () {
+          showFont({ name: f.name });
+          s.font = 'custom'; apply();
+          msg(fontMsg, '');
+        }).catch(function () {
+          msg(fontMsg, 'Це не схоже на шрифт. Підходять файли .ttf, .otf, .woff або .woff2.');
+        });
+      };
+      rd.onerror = function () { msg(fontMsg, 'Не вдалося прочитати файл.'); };
+      rd.readAsArrayBuffer(f);
+    });
+    $('font-remove').addEventListener('click', function () {
+      PIDR.files.del('font').catch(function () {});
+      document.fonts.forEach(function (x) { if (/PidrUserFont/.test(x.family)) document.fonts.delete(x); });
+      showFont(null);
+      if (s.font === 'custom') s.font = 'soft';
+      apply();
+    });
+    PIDR.ready.font.then(function (v) {
+      if (v) showFont({ name: v.name });
+      else if (s.font === 'custom') { s.font = 'soft'; apply(); }
+    });
+
+    /* ---------- скинути все (з підтвердженням прямо на кнопці) ---------- */
+    var resetBtn = $('reset'), resetTimer = null;
+    resetBtn.addEventListener('click', function () {
+      if (!resetBtn.classList.contains('armed')) {
+        resetBtn.classList.add('armed');
+        resetBtn.textContent = 'Натисніть ще раз, щоб скинути';
+        resetTimer = setTimeout(function () { resetBtn.classList.remove('armed'); resetBtn.textContent = 'Скинути все налаштування'; }, 3500);
+        return;
+      }
+      clearTimeout(resetTimer);
+      PIDR.wipe();
+      Promise.all([PIDR.files.del('bg'), PIDR.files.del('font')]).catch(function () {}).then(function () { location.reload(); });
+    });
+
+    /* ---------- відкриття / закриття шторки ---------- */
+    $('open-settings').addEventListener('click', function () {
       dlg.classList.remove('closing');
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
     });
-
-    // Плавне закриття: спершу анімація, потім close()
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     function closeSheet() {
       if (!dlg.open || dlg.classList.contains('closing')) return;
