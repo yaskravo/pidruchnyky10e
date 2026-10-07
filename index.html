@@ -20,7 +20,7 @@
      Прості налаштування — у localStorage, фото фону і свій шрифт (великі файли) — в IndexedDB. */
   var PIDR = (function () {
     var KEY = 'pidruchnyky-settings';
-    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal', color: 'multi', radius: 'normal', bg: 'default', bgVis: 60 };
+    var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal', color: 'multi', radius: 'normal', bg: 'default', bgVis: 60, bgColor: '' };
     var RADII = { square: 6, small: 14, normal: 26, round: 40 };
     var FONTS = { soft: 1, strict: 1, pixel: 1, custom: 1 };
     var HEX = /^#[0-9a-f]{6}$/i;
@@ -34,6 +34,7 @@
       if (s.color !== 'multi' && !HEX.test(s.color)) s.color = 'multi';
       if (s.bg !== 'default' && s.bg !== 'photo' && !HEX.test(s.bg)) s.bg = 'default';
       s.bgVis = Math.min(100, Math.max(20, +s.bgVis || 60));
+      if (!HEX.test(s.bgColor)) s.bgColor = HEX.test(s.bg) ? s.bg : '';
       return s;
     }
     function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
@@ -429,14 +430,15 @@
   .swatch > svg.i { stroke-width: 3; opacity: 0; transform: scale(.5); transition: opacity .2s ease, transform .35s var(--spring); filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, .55)); }
   .swatch[aria-pressed="true"] > svg.i { opacity: 1; transform: none; }
   .swatch.multi { background: conic-gradient(#FFAE5E, #FFD84D, #5FDDB1, #8FB4FF, #FF92C6, #FFAE5E); }
-  .swatch.auto-bg { background: linear-gradient(135deg, #F2F3F7 50%, #000 50%); }
   .swatch.custom { background: conic-gradient(from 90deg, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30); }
   .swatch .plus { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #111; display: grid; place-items: center; font-size: 18px; pointer-events: none; }
   .swatch .plus svg.i { stroke-width: 2.6; transition: transform .35s var(--spring); }
   .swatch.custom[aria-pressed="true"] .plus { background: var(--c); color: #fff; }
   .swatch[aria-expanded="true"] .plus svg.i { transform: rotate(45deg); }
-  .swatch.photo { background: var(--seg-bg) var(--thumb, none) center / cover; color: var(--ink); }
-  .swatch.photo .plus { background: var(--surface); color: var(--ink); }
+  .seg .dot {
+    width: 22px; height: 22px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
+    background: var(--c, conic-gradient(from 90deg, #ff3b30, #ffcc00, #34c759, #00c7be, #007aff, #af52de, #ff3b30));
+  }
 
   /* власна палітра: квадрат насиченість/яскравість + смуга відтінку + HEX */
   .panel {
@@ -659,21 +661,10 @@
 
     <fieldset>
       <legend>Фон</legend>
-      <div class="swatches" id="bg-swatches">
-        <button type="button" class="swatch auto-bg" id="bg-default" data-bg="default" aria-label="Стандартний фон"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-white" data-bg="#FFFFFF" style="--c:#FFFFFF" aria-label="Білий"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-sky" data-bg="#E4EEFF" style="--c:#E4EEFF" aria-label="Блакитний"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-mint" data-bg="#E2F5EA" style="--c:#E2F5EA" aria-label="М'ятний"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-peach" data-bg="#FFEEDD" style="--c:#FFEEDD" aria-label="Персиковий"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-lilac" data-bg="#EFE8FF" style="--c:#EFE8FF" aria-label="Бузковий"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-navy" data-bg="#0E1A2F" style="--c:#0E1A2F" aria-label="Темно-синій"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch" id="bg-graphite" data-bg="#1C1C1F" style="--c:#1C1C1F" aria-label="Графітовий"><svg class="i"><use href="#i-check"/></svg></button>
-        <button type="button" class="swatch custom" id="bg-custom" aria-label="Свій колір фону" aria-expanded="false" aria-controls="bg-picker">
-          <span class="plus"><svg class="i"><use href="#i-plus"/></svg></span>
-        </button>
-        <button type="button" class="swatch photo" id="bg-photo" aria-label="Своє фото на фоні" aria-expanded="false" aria-controls="photo-panel">
-          <span class="plus"><svg class="i"><use href="#i-image"/></svg></span>
-        </button>
+      <div class="seg" id="bg-seg">
+        <button type="button" id="bg-default" data-mode="default"><svg class="i"><use href="#i-auto"/></svg>Як тема</button>
+        <button type="button" id="bg-custom" data-mode="color" aria-expanded="false" aria-controls="bg-picker"><span class="dot"></span>Свій колір</button>
+        <button type="button" id="bg-photo" data-mode="photo" aria-expanded="false" aria-controls="photo-panel"><svg class="i"><use href="#i-image"/></svg>Фото</button>
       </div>
       <div class="panel" id="bg-picker" hidden></div>
       <div class="panel" id="photo-panel" hidden>
@@ -765,14 +756,13 @@
     var dlg = $('settings');
     var books = $('books');
     var cardSwatches = document.querySelectorAll('#swatches .swatch[data-color]');
-    var bgSwatches = document.querySelectorAll('#bg-swatches .swatch[data-bg]');
     var colorCustom = $('color-custom'), bgCustom = $('bg-custom'), bgPhoto = $('bg-photo');
     var hasPhoto = false, fontInfo = null;
     var HEX = /^#[0-9a-f]{6}$/i;
 
     function apply(noSave) {
       PIDR.applyRoot(s);
-      document.querySelectorAll('.seg').forEach(function (seg) {
+      document.querySelectorAll('.seg[data-key]').forEach(function (seg) {
         var btns = seg.querySelectorAll('button'), any = false;
         seg.style.setProperty('--n', btns.length);
         btns.forEach(function (b, i) {
@@ -791,19 +781,20 @@
       });
       colorCustom.setAttribute('aria-pressed', String(!preset));
       if (!preset) colorCustom.style.setProperty('--c', s.color);
-      // фон
-      var bgPreset = false;
-      bgSwatches.forEach(function (b) {
-        var on = b.dataset.bg.toLowerCase() === String(s.bg).toLowerCase();
-        if (on) bgPreset = true;
+      // фон: як тема / свій колір / фото
+      var mode = bgMode(), seg = $('bg-seg'), bb = seg.querySelectorAll('button');
+      seg.style.setProperty('--n', bb.length);
+      bb.forEach(function (b, i) {
+        var on = b.dataset.mode === mode;
         b.setAttribute('aria-pressed', String(on));
+        if (on) seg.style.setProperty('--i', i);
       });
-      var bgIsCustom = !bgPreset && HEX.test(s.bg);
-      bgCustom.setAttribute('aria-pressed', String(bgIsCustom));
-      if (bgIsCustom) bgCustom.style.setProperty('--c', s.bg);
-      bgPhoto.setAttribute('aria-pressed', String(s.bg === 'photo'));
+      var dot = bgCustom.querySelector('.dot');
+      if (s.bgColor) dot.style.setProperty('--c', s.bgColor); else dot.style.removeProperty('--c');
       if (!noSave) PIDR.save(s);
     }
+
+    function bgMode() { return HEX.test(s.bg) ? 'color' : s.bg === 'photo' ? 'photo' : 'default'; }
 
     function msg(el, text, ok) {
       el.textContent = text || '';
@@ -818,7 +809,7 @@
       books.classList.add('again');
     }
 
-    document.querySelectorAll('.seg').forEach(function (seg) {
+    document.querySelectorAll('.seg[data-key]').forEach(function (seg) {
       seg.addEventListener('click', function (e) {
         var b = e.target.closest('button');
         if (!b || s[seg.dataset.key] === b.dataset.value) return;
@@ -936,21 +927,20 @@
     /* ---------- фон ---------- */
     var bgPanel = $('bg-picker'), photoPanel = $('photo-panel'), bgMsg = $('bg-msg');
     var photoFile = $('photo-file'), photoVis = $('photo-vis'), photoVisOut = $('photo-vis-out');
-    var bgPicker = makePicker(bgPanel, function (hx, final) { s.bg = hx; apply(!final); });
+    var bgPicker = makePicker(bgPanel, function (hx, final) { s.bg = s.bgColor = hx; apply(!final); });
 
-    bgSwatches.forEach(function (b) {
-      b.addEventListener('click', function () {
-        s.bg = b.dataset.bg; apply();
-        togglePanel(bgPhoto, photoPanel, false);
-        if (HEX.test(s.bg)) bgPicker.sync(s.bg);
-      });
+    $('bg-default').addEventListener('click', function () {
+      togglePanel(bgCustom, bgPanel, false);
+      togglePanel(bgPhoto, photoPanel, false);
+      if (s.bg !== 'default') { s.bg = 'default'; apply(); }
     });
     bgCustom.addEventListener('click', function () {
       togglePanel(bgPhoto, photoPanel, false);
-      if (togglePanel(bgCustom, bgPanel)) {
-        bgPicker.sync(HEX.test(s.bg) ? s.bg : '#e4eeff');
-        if (!HEX.test(s.bg)) bgPicker.commit(true);
-      }
+      if (bgMode() !== 'color') {
+        s.bg = s.bgColor = s.bgColor || '#e4eeff'; apply();
+        bgPicker.sync(s.bg);
+        togglePanel(bgCustom, bgPanel, true);
+      } else if (togglePanel(bgCustom, bgPanel)) bgPicker.sync(s.bg);
     });
     bgPhoto.addEventListener('click', function () {
       togglePanel(bgCustom, bgPanel, false);
@@ -962,7 +952,8 @@
 
     function setThumb(url) {
       var v = url ? 'url("' + url + '")' : '';
-      [bgPhoto, $('photo-thumb')].forEach(function (el) { if (v) el.style.setProperty('--thumb', v); else el.style.removeProperty('--thumb'); });
+      var el = $('photo-thumb');
+      if (v) el.style.setProperty('--thumb', v); else el.style.removeProperty('--thumb');
     }
 
     // Стискаємо фото до 2000 px по довшій стороні (JPEG) — швидко вантажиться і не забиває пам'ять
