@@ -249,7 +249,7 @@
   .b-ukr  { --bg-card: var(--ukr-bg);  --fg: var(--ukr-fg); }
 
   .note {
-    margin: 0; color: var(--ink-soft); font-size: calc(15px * var(--scale)); display: flex; align-items: center; gap: 8px;
+    margin: auto 0 0; padding-top: 16px; color: var(--ink-soft); font-size: calc(15px * var(--scale)); display: flex; align-items: center; gap: 8px;
     animation: fade .6s var(--ease-out) .45s both;
   }
 
@@ -379,13 +379,6 @@
   .picker-row input:focus { outline: none; border-color: var(--accent); }
   .picker-row input[aria-invalid="true"] { border-color: #E5484D; }
 
-  /* ---------- підвал ---------- */
-  .credit {
-    margin-top: auto; display: flex; align-items: center; gap: 14px; padding-top: 20px; border-top: 1px solid var(--line);
-    color: var(--ink-soft); font-size: calc(15px * var(--scale));
-    animation: fade .6s var(--ease-out) .55s both;
-  }
-  .credit b { color: var(--ink); font-weight: 800; }
 
   .done {
     min-height: 58px; border-radius: var(--radius-ui); border: 0; background: var(--accent); color: #fff;
@@ -488,10 +481,6 @@
   </main>
 
   <p class="note"><svg class="i"><use href="#i-info"/></svg>Підручник відкривається в новій вкладці.</p>
-
-  <footer class="credit">
-    <span>Розробка: <b>В. Сулімов</b></span>
-  </footer>
 </div>
 
 <dialog id="settings" aria-labelledby="settings-title">
