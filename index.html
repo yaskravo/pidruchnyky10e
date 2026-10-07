@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Nunito:wght@600;700;800;900&display=swap">
 <script>
   /* Спільна логіка налаштувань. Викликається ще до першого малювання, щоб не було «блимання».
-     Прості налаштування — у localStorage, фото фону і свій шрифт (великі файли) — в IndexedDB. */
+     Прості налаштування, у localStorage, фото фону і свій шрифт (великі файли), в IndexedDB. */
   var PIDR = (function () {
     var KEY = 'pidruchnyky-settings';
     var defaults = { font: 'soft', theme: 'auto', layout: 'grid', size: 'normal', color: 'multi', radius: 'normal', bg: 'default', bgVis: 60, bgColor: '' };
@@ -145,8 +145,8 @@
     src: url("fonts/Minecraft.ttf") format("truetype");
     font-weight: 400; font-style: normal; font-display: swap;
   }
-  /* Макет: великий заголовок як в iOS, під ним кольорові картки-віджети; телефон — 2 в ряд, планшет/ПК — 3 + 2.
-     Анімації лише через transform і opacity (композитор GPU), без blur і анімованих тіней — легко навіть для слабких планшетів. */
+  /* Макет: великий заголовок як в iOS, під ним кольорові картки-віджети; телефон, 2 в ряд, планшет/ПК, 3 + 2.
+     Анімації лише через transform і opacity (композитор GPU), без blur і анімованих тіней, легко навіть для слабких планшетів. */
   :root {
     --bg: #F2F3F7;
     --surface: #FFFFFF;
@@ -260,7 +260,7 @@
   }
   :root[data-font="strict"] h1 { font-weight: 800; letter-spacing: -.03em; }
   :root[data-font="custom"] h1 { letter-spacing: 0; }
-  /* у шрифта Minecraft лише одне накреслення — без штучного «жирного», щоб пікселі лишались чіткими */
+  /* у шрифта Minecraft лише одне накреслення, без штучного «жирного», щоб пікселі лишались чіткими */
   :root[data-font="pixel"] body { font-synthesis: none; }
   :root[data-font="pixel"] :is(h1, h2, small, button, .aa, legend) { font-weight: 400; letter-spacing: 0; }
 
@@ -290,6 +290,10 @@
     :root[data-layout="list"] .books { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     :root[data-layout="list"] .books > li:last-child { grid-column: span 2; }
   }
+  /* компактно: маленькі плитки як іконки застосунків, 3 в ряд на телефоні і всі 5 в ряд на планшеті/ПК */
+  :root[data-layout="compact"] .books { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  :root[data-layout="compact"] .books > li { grid-column: auto; }
+  @media (min-width: 640px) { :root[data-layout="compact"] .books { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; } }
   .books > li { animation: rise .6s var(--ease-out) both; animation-delay: calc(var(--n) * 55ms + 60ms); }
   .books.again > li { animation-name: rise2; animation-duration: .45s; animation-delay: calc(var(--n) * 35ms); }
 
@@ -333,6 +337,13 @@
   :root[data-layout="list"] .book { flex-direction: row; align-items: center; min-height: calc(104px * var(--scale)); padding: 16px 18px; }
   :root[data-layout="list"] .book h2 { margin: 0; flex: 1; }
   :root[data-layout="list"] .book .go { position: static; }
+  :root[data-layout="compact"] .book {
+    align-items: center; justify-content: center; text-align: center; gap: 10px;
+    min-height: calc(150px * var(--scale)); padding: 16px 10px;
+  }
+  :root[data-layout="compact"] .book .tile { justify-items: center; }
+  :root[data-layout="compact"] .book h2 { margin: 0; font-size: calc(19px * var(--scale)); }
+  :root[data-layout="compact"] .book .go { display: none; }
 
   .b-hist { --bg-card: var(--hist-bg); --fg: var(--hist-fg); }
   .b-math { --bg-card: var(--math-bg); --fg: var(--math-fg); }
@@ -409,7 +420,8 @@
   .seg button[data-font="strict"] { font-family: var(--font-strict); }
   .seg button[data-font="pixel"]  { font-family: var(--font-pixel); font-synthesis: none; }
   .seg button[data-font="pixel"], .seg button[data-font="pixel"] .aa { font-weight: 400; }
-  .seg button[data-font="custom"] .aa { font-family: var(--font-custom); }
+  .seg button[data-font="custom"] .aa { font-family: Georgia, "Times New Roman", "Noto Serif", serif; font-style: italic; font-weight: 700; }
+  :root[data-user-font] .seg button[data-font="custom"] .aa { font-family: "PidrUserFont", Georgia, serif; font-style: normal; }
   .seg .aa { font-size: calc(22px * var(--scale)); line-height: 1; font-weight: 800; }
   .seg .shape { width: 24px; height: 24px; border: 2.5px solid currentColor; display: block; }
 
@@ -534,7 +546,7 @@
     .book { min-height: calc(138px * var(--scale)); padding: 16px; gap: 12px; border-radius: min(var(--radius), 26px); }
     .tile { font-size: calc(38px * var(--scale)); width: calc(44px * var(--scale)); height: calc(44px * var(--scale)); }
     .book h2 { font-size: calc(clamp(15px, 5vw, 24px) * var(--scale)); hyphens: manual; }
-    /* піксельний і свій шрифт зазвичай ширші — трохи менший кегль, щоб слова не рвались */
+    /* піксельний і свій шрифт зазвичай ширші, трохи менший кегль, щоб слова не рвались */
     :root:is([data-font="pixel"], [data-font="custom"]) .book h2 { font-size: calc(clamp(13px, 4.3vw, 22px) * var(--scale)); }
     .seg[data-key="font"] button { overflow-wrap: normal; }
     .seg button[data-font="pixel"] { font-size: calc(11.5px * var(--scale)); }
@@ -547,6 +559,11 @@
     .swatch { width: 44px; height: 44px; }
     .swatch .plus { width: 26px; height: 26px; font-size: 16px; }
   }
+  @media (max-width: 639px) {
+    :root[data-layout="compact"] .book { min-height: calc(112px * var(--scale)); padding: 14px 6px; gap: 8px; }
+    :root[data-layout="compact"] .book .tile { font-size: calc(34px * var(--scale)); width: auto; height: calc(38px * var(--scale)); }
+    :root[data-layout="compact"] .book h2 { font-size: calc(clamp(12px, 3.6vw, 16px) * var(--scale)); }
+  }
   @media (max-width: 360px) {
     .book { padding: 14px; }
   }
@@ -557,6 +574,8 @@
     .book { min-height: calc(220px * var(--scale)); padding: 28px; }
     .book h2 { font-size: calc(32px * var(--scale)); }
     .tile { font-size: calc(58px * var(--scale)); }
+    :root[data-layout="compact"] .book { min-height: calc(180px * var(--scale)); }
+    :root[data-layout="compact"] .book h2 { font-size: calc(22px * var(--scale)); }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after, dialog::backdrop { transition: none !important; animation: none !important; }
@@ -583,6 +602,7 @@
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-apps" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="9.5" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16" y="9.5" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="9.5" y="16" width="5" height="5" rx="1.2"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
   <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></symbol>
@@ -725,6 +745,7 @@
       <div class="seg" data-key="layout">
         <button type="button" id="layout-grid" data-value="grid"><svg class="i"><use href="#i-grid"/></svg>Плитки</button>
         <button type="button" id="layout-list" data-value="list"><svg class="i"><use href="#i-list"/></svg>Список</button>
+        <button type="button" id="layout-compact" data-value="compact"><svg class="i"><use href="#i-apps"/></svg>Компактно</button>
       </div>
     </fieldset>
 
@@ -740,7 +761,7 @@
       <svg class="i"><use href="#i-save"/></svg>
       <div>
         <p><b>Налаштування зберігаються тільки в цьому браузері на цьому пристрої.</b> На іншому телефоні чи комп'ютері їх доведеться виставити заново.</p>
-        <p>Вони зітруться, якщо очистити «файли cookie та дані сайтів» або відкрити сайт в режимі інкогніто. Звичайне очищення кешу (картинок і файлів) їх не зачіпає. У Safari на iPhone та iPad дані можуть зникнути, якщо не заходити на сайт 7 днів — щоб цього не було, додайте сайт на головний екран.</p>
+        <p>Вони зітруться, якщо очистити «файли cookie та дані сайтів» або відкрити сайт в режимі інкогніто. Звичайне очищення кешу (картинок і файлів) їх не зачіпає. У Safari на iPhone та iPad дані можуть зникнути, якщо не заходити на сайт 7 днів. Щоб цього не було, додайте сайт на головний екран.</p>
       </div>
     </div>
 
@@ -813,7 +834,7 @@
       seg.addEventListener('click', function (e) {
         var b = e.target.closest('button');
         if (!b || s[seg.dataset.key] === b.dataset.value) return;
-        // «Свій» шрифт без файлу — спершу просимо вибрати файл
+        // «Свій» шрифт без файлу, спершу просимо вибрати файл
         if (seg.dataset.key === 'font' && b.dataset.value === 'custom' && !fontInfo) { $('font-file').click(); return; }
         s[seg.dataset.key] = b.dataset.value;
         apply();
@@ -859,7 +880,7 @@
       }
       function sync(hx) { var v = hexToHsv(hx); if (v[1] > 0.02) H = v[0]; S = v[1]; V = v[2]; paint(); }
 
-      // під час перетягування застосовуємо зміни раз на кадр — плавно і без зайвої роботи
+      // під час перетягування застосовуємо зміни раз на кадр, плавно і без зайвої роботи
       var pending = false;
       function commit(final) {
         var cur = hsvToHex(H, S, V);
@@ -956,7 +977,7 @@
       if (v) el.style.setProperty('--thumb', v); else el.style.removeProperty('--thumb');
     }
 
-    // Стискаємо фото до 2000 px по довшій стороні (JPEG) — швидко вантажиться і не забиває пам'ять
+    // Стискаємо фото до 2000 px по довшій стороні (JPEG), швидко вантажиться і не забиває пам'ять
     function shrinkImage(file) {
       return new Promise(function (res, rej) {
         var url = URL.createObjectURL(file), img = new Image();
